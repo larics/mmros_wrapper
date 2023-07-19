@@ -1,7 +1,11 @@
 <launch>
-  <arg name="deploy_cfg_path" default="path/to/deploy_cfg.yaml"/>
-  <arg name="model_cfg_path" default="path/to/model_cfg.yaml"/>
-  <arg name="backend_model_name" default="your_backend_model_name"/>
+  <arg name="deploy_cfg_path" default="$(find mmros_wrapper)/include/config/instance-seg_tensorrt-fp16_dyn.yaml"/>
+  <arg name="model_cfg_path" default="$(find mmros_wrapper)/include/config/mask-rcnn_r101_fpn_1x_taco.py"/>
+  <arg name="backend_model_name" default="$(find mmros_wrapper)/include/models/end2end.engine"/>
 
-  <node name="mm_ros_wrapper_node" pkg="your_package_name" type="MMRosWrapper.py" output="screen" args="$(arg deploy_cfg_path) $(arg model_cfg_path) $(arg backend_model_name)" />
+  <node name="mm_ros_wrapper_node" pkg="mmros_wrapper" type="MMRosWrapper.py" output="screen">
+    <param name="deploy_cfg_path" value="$(arg deploy_cfg_path)" />
+    <param name="model_cfg_path" value="$(arg model_cfg_path)" />
+    <param name="backend_model_name" value="$(arg backend_model_name)" />
+  </node>
 </launch>

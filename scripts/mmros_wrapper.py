@@ -1,4 +1,5 @@
-#!/usr/bin/env python
+#!/home/gideon/archiconda3/envs/mmdeploy/lib/python3.8
+
 import rospy
 from sensor_msgs.msg import CompressedImage
 import cv2
