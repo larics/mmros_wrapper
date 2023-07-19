@@ -1,0 +1,7 @@
+<launch>
+  <arg name="deploy_cfg_path" default="path/to/deploy_cfg.yaml"/>
+  <arg name="model_cfg_path" default="path/to/model_cfg.yaml"/>
+  <arg name="backend_model_name" default="your_backend_model_name"/>
+
+  <node name="mm_ros_wrapper_node" pkg="your_package_name" type="MMRosWrapper.py" output="screen" args="$(arg deploy_cfg_path) $(arg model_cfg_path) $(arg backend_model_name)" />
+</launch>
