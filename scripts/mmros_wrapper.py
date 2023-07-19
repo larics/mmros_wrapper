@@ -1,5 +1,4 @@
 #! /home/gideon/archiconda3/envs/mmdeploy/bin/python3.8
-
 import rospy
 from sensor_msgs.msg import CompressedImage
 import cv2
@@ -34,13 +33,16 @@ class MMRosWrapper:
     def load_model(self, deploy_cfg_path, model_cfg_path, backend_model_name):
         # Read deploy_cfg and model_cfg
         self.deploy_cfg, self.model_cfg = load_config(deploy_cfg_path, model_cfg_path)
-
-        # Replace the following line with the appropriate device selection if needed
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        debug_pths=False
+        if debug_pths:
+            print("deploy_cfg: {}".format(self.deploy_cfg))
+            print("model_cfg: {}".format(self.model_cfg))
+        # jetson config --> cuda:0
+        device = "cuda:0"
 
         # Build task and backend model
-        task_processor = build_task_processor(self.model_cfg, self.eploy_cfg, device)
-        model = task_processor.build_backend_model(backend_model_name)
+        task_processor = build_task_processor(self.model_cfg, self.deploy_cfg, device)
+        model = task_processor.build_backend_model([backend_model_name])
         self.model_initialized = True
         rospy.loginfo("Model succesfully initialized!")
 
@@ -82,6 +84,9 @@ if __name__ == '__main__':
             deploy_cfg_path = sys.argv[1]
             model_cfg_path = sys.argv[2]
             backend_model_name = sys.argv[3]
+            print("Deploy cfg path: {}".format(deploy_cfg_path))
+            print("Model cfg path: {}".format(model_cfg_path))
+            print("Backend model name: {}".format(backend_model_name))
             mmWrap = MMRosWrapper(deploy_cfg_path, model_cfg_path, backend_model_name)
             mmWrap.run()
     except rospy.ROSInterruptException:
