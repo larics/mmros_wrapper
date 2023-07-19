@@ -1,9 +1,10 @@
-#!/home/gideon/archiconda3/envs/mmdeploy/lib/python3.8
+#! /home/gideon/archiconda3/envs/mmdeploy/bin/python3.8
 
 import rospy
 from sensor_msgs.msg import CompressedImage
 import cv2
 import numpy as np
+import sys
 
 from mmdeploy.apis.utils import build_task_processor
 from mmdeploy.utils import get_input_shape, load_config
@@ -12,6 +13,7 @@ import torch
 
 class MMRosWrapper:
     def __init__(self, deploy_cfg_path, model_cfg_path, backend_model_name):
+        rospy.loginfo("Initializing node!")
         self.img = None
         self.img_received = False
         self.model_initialized = False
@@ -31,16 +33,16 @@ class MMRosWrapper:
 
     def load_model(self, deploy_cfg_path, model_cfg_path, backend_model_name):
         # Read deploy_cfg and model_cfg
-        deploy_cfg, model_cfg = load_config(deploy_cfg_path, model_cfg_path)
+        self.deploy_cfg, self.model_cfg = load_config(deploy_cfg_path, model_cfg_path)
 
         # Replace the following line with the appropriate device selection if needed
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # Build task and backend model
-        task_processor = build_task_processor(model_cfg, deploy_cfg, device)
+        task_processor = build_task_processor(self.model_cfg, self.eploy_cfg, device)
         model = task_processor.build_backend_model(backend_model_name)
         self.model_initialized = True
-	rospy.loginfo("Model succesfully initialized!")
+        rospy.loginfo("Model succesfully initialized!")
 
         return model
 
@@ -50,14 +52,14 @@ class MMRosWrapper:
                 img = self.img.copy()
 
                 # Process input image
-                input_shape = get_input_shape(deploy_cfg)
+                input_shape = get_input_shape(self.deploy_cfg)
                 model_inputs, _ = task_processor.create_input(img, input_shape)
 
                 # Capture the start time
                 start_time = rospy.Time.now()
 
                 with torch.no_grad():
-                    result = model.test_step(model_inputs)
+                    result = self.model.test_step(model_inputs)
 
                 # Capture the end time and calculate the duration
                 end_time = rospy.Time.now()
