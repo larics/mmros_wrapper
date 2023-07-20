@@ -1,14 +1,17 @@
 #! /home/gideon/archiconda3/envs/mmdeploy/bin/python3.8
 import rospy
-from sensor_msgs.msg import CompressedImage
 import cv2
 import numpy as np
 import sys
+import io
 
 from mmdeploy.apis.utils import build_task_processor
 from mmdeploy.utils import get_input_shape, load_config
-from PIL import Image
+from PIL import Image as PILImage
+from sensor_msgs.msg import Image, CameraInfo, CompressedImage
 import torch
+
+from utils import convert_pil_to_ros_img
 
 class MMRosWrapper:
     def __init__(self, deploy_cfg_path, model_cfg_path, backend_model_name):
@@ -19,6 +22,7 @@ class MMRosWrapper:
         rospy.init_node('image_subscriber_node', anonymous=True)
         self.rate = rospy.Rate(10)  # 10 Hz, adjust as needed
         self.compr_img_sub = rospy.Subscriber("camera/color/image_raw/compressed", CompressedImage, self.image_callback, queue_size=1)
+        self.img_pub = rospy.Publisher("camera/color/image_raw/decompressed", Image, queue_size=10)
         self.model = self.load_model(deploy_cfg_path, model_cfg_path, backend_model_name)
 
     def image_callback(self, data):
@@ -29,8 +33,19 @@ class MMRosWrapper:
             self.img = img_rgb
             self.np_arr = np_arr
             self.img_received = True
-        except Exception as e:
+        except Exception as e: 
             rospy.logerr("Error decoding compressed image: %s", str(e))
+
+        # Convert and publish decompressed message
+        debug_img_reciv = True
+        if debug_img_reciv:
+            img_msg = self.convert_np_array_to_ros_img_msg(data.data, data.header)
+            self.img_pub.publish(img_msg)
+
+    def convert_np_array_to_ros_img_msg(self, data, header):
+        pil_img = PILImage.open(io.BytesIO(bytearray(data)))
+        img_msg = convert_pil_to_ros_img(pil_img, header)
+        return img_msg
 
     def load_model(self, deploy_cfg_path, model_cfg_path, backend_model_name):
         # Read deploy_cfg and model_cfg
@@ -67,7 +82,6 @@ class MMRosWrapper:
 
                 with torch.no_grad():
                     result = self.model.test_step(model_inputs)
-                
                 debug_imgs = True
                 if debug_imgs:
                     self.task_processor.visualize(
