@@ -1,17 +1,18 @@
 #! /home/gideon/archiconda3/envs/mmdeploy/bin/python3.8
 import rospy
 import cv2
-import numpy as np
 import sys
 import io
+import copy
+import torch
+import numpy as np
 
 from mmdeploy.apis.utils import build_task_processor
 from mmdeploy.utils import get_input_shape, load_config
 from PIL import Image as PILImage
 from sensor_msgs.msg import Image, CameraInfo, CompressedImage
-import torch
+from utils import convert_pil_to_ros_img, plot_bboxes
 
-from utils import convert_pil_to_ros_img
 
 class MMRosWrapper:
     def __init__(self, deploy_cfg_path, model_cfg_path, backend_model_name):
@@ -27,17 +28,18 @@ class MMRosWrapper:
 
     def image_callback(self, data):
         try:
-            np_arr = np.fromstring(data.data, np.uint8)
+            np_arr = np.frombuffer(data.data, np.uint8)
             img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
             img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             self.img = img_rgb
+            self.header = data.header
             self.np_arr = np_arr
             self.img_received = True
         except Exception as e: 
             rospy.logerr("Error decoding compressed image: %s", str(e))
 
         # Convert and publish decompressed message
-        debug_img_reciv = True
+        debug_img_reciv = False
         if debug_img_reciv:
             img_msg = self.convert_np_array_to_ros_img_msg(data.data, data.header)
             self.img_pub.publish(img_msg)
@@ -71,6 +73,7 @@ class MMRosWrapper:
             viz_dbg_img_pth = "/home/gideon/catkin_ws/src/mmros_wrapper/scripts"
             if self.model_initialized and self.img_received:
                 i += 1
+                header = copy.deepcopy(self.header)
                 img = self.img.copy()
 
                 # Process input image
@@ -82,14 +85,11 @@ class MMRosWrapper:
 
                 with torch.no_grad():
                     result = self.model.test_step(model_inputs)
-                debug_imgs = True
-                if debug_imgs:
-                    self.task_processor.visualize(
-                         image = img,
-                         model = self.model,
-                         result = result[0],
-                         window_name='visualize',
-                         output_file="{}/debug_imgs/out_{}.png".format(viz_dbg_img_pth, i))
+                #labels = result[0].pred_instances.labels.cpu().detach().numpy()
+                #bboxes = result[0].pred_instances.bboxes.cpu().detach().numpy()
+                #pil_img = plot_bboxes(img, bboxes, labels)
+                #ros_img = convert_pil_to_ros_img(pil_img, header)
+                #self.img_pub.publish(ros_img)
 
                 # Capture the end time and calculate the duration
                 end_time = rospy.Time.now()

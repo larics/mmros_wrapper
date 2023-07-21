@@ -1,11 +1,11 @@
 <launch>
   <!--arg name="deploy_cfg_path" default="$(find mmros_wrapper)/include/configs/instance-seg_tensorrt-fp16_dynamic-320x320-1344x1344.py"/-->
   <!--arg name="model_cfg_path" default="$(find mmros_wrapper)/include/configs/mask-rcnn_r101_fpn_1x_taco.py"/-->
-  <!--arg name="backend_model_name" default="$(find mmros_wrapper)/include/models/albu.engine"/-->
+  <!--arg name="backend_model_name" default="$(find mmros_wrapper)/include/models/scp.engine"/-->
 
   <arg name="deploy_cfg_path" default="/home/gideon/mmworks/mmdeploy/configs/mmdet/instance-seg/instance-seg_tensorrt-fp16_dynamic-320x320-1344x1344.py"/>
   <arg name="model_cfg_path" default="/home/gideon/mmworks/mmdetection/configs/mask_rcnn/mask-rcnn_r101_fpn_1x_taco.py"/>
-  <arg name="backend_model_name" default="$(find mmros_wrapper)/include/models/end2end.engine"/>
+  <arg name="backend_model_name" default="$(find mmros_wrapper)/include/models/scp.engine"/>
 
   <node name="mm_ros_wrapper_node" pkg="mmros_wrapper" type="mmros_wrapper.py" output="screen" args="$(arg deploy_cfg_path) $(arg model_cfg_path) $(arg backend_model_name)"/>
 </launch>
