@@ -11,8 +11,8 @@ from mmdeploy.apis.utils import build_task_processor
 from mmdeploy.utils import get_input_shape, load_config
 from PIL import Image as PILImage
 from sensor_msgs.msg import Image, CameraInfo, CompressedImage
-from utils import convert_pil_to_ros_img, plot_bboxes
-
+from utils import convert_pil_to_ros_img, plot_result
+plot_result
 
 class MMRosWrapper:
     def __init__(self, deploy_cfg_path, model_cfg_path, backend_model_name):
@@ -85,12 +85,17 @@ class MMRosWrapper:
 
                 with torch.no_grad():
                     result = self.model.test_step(model_inputs)
-                #labels = result[0].pred_instances.labels.cpu().detach().numpy()
-                #bboxes = result[0].pred_instances.bboxes.cpu().detach().numpy()
-                #pil_img = plot_bboxes(img, bboxes, labels)
-                #ros_img = convert_pil_to_ros_img(pil_img, header)
-                #self.img_pub.publish(ros_img)
-
+                                        
+                plot = True
+                if plot == True: 
+                    labels = result[0].pred_instances.labels.cpu().detach().numpy()
+                    bboxes = result[0].pred_instances.bboxes.cpu().detach().numpy()
+                    masks = result[0].pred_instances.masks.cpu().detach().numpy()
+                    scores = result[0].pred_instances.scores.cpu().detach().numpy()
+                    pil_img = plot_result(img, bboxes, labels, scores, 0.5, True, masks)
+                    #pil_img = plot_masks(pil_img, masks, labels, scores) 
+                    ros_img = convert_pil_to_ros_img(pil_img, header)
+                    self.img_pub.publish(ros_img)
                 # Capture the end time and calculate the duration
                 end_time = rospy.Time.now()
                 duration = (end_time - start_time).to_sec()
