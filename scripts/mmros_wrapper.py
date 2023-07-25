@@ -10,8 +10,9 @@ import numpy as np
 from mmdeploy.apis.utils import build_task_processor
 from mmdeploy.utils import get_input_shape, load_config
 from PIL import Image as PILImage
+from PIL import ImageDraw, ImageFont
 from sensor_msgs.msg import Image, CameraInfo, CompressedImage
-from utils import convert_pil_to_ros_img, plot_result, convert_to_rects
+from utils import *
 from tracker import CentroidTracker
 
 class MMRosWrapper:
@@ -91,7 +92,7 @@ class MMRosWrapper:
                     scores = result[0].pred_instances.scores.cpu().detach().numpy()
                     
                 # Test detection
-                plot = False
+                plot = True
                 if plot:    
                     pil_img = plot_result(img, bboxes, labels, scores, 0.25, True, masks)
                     #pil_img = plot_masks(pil_img, masks, labels, scores) 
@@ -99,10 +100,11 @@ class MMRosWrapper:
                 # Test tracking
                 if self.tracking:
                     # Convert bboxes to format used in centroid tracker
-                    rects = convert_to_rects(bboxes, scores)
+                    rects = filter_bboxes(bboxes, scores)
                     # Call update on centroid tracker
                     objects = self.cT.update(rects)
-                    pil_img = PILImage.fromarray(img_np)
+                    if not plot:
+                        pil_img = PILImage.fromarray(img)
                     draw = ImageDraw.Draw(pil_img)
                     for (objectID, centroid) in objects.items():
                         # draw both the ID of the object and the centroid of the

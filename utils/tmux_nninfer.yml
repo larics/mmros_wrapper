@@ -1,0 +1,28 @@
+# /home/gideon/.config/tmuxinator/nninfer.yml
+
+name: nninfer
+root: ~/
+on_project_start: 
+  - conda activate mmdeploy
+
+windows:
+  - nn_infer:
+      layout: main-vertical
+      # Synchronize all panes of this window, can be enabled before or after the pane commands run.
+      # 'before' represents legacy functionality and will be deprecated in a future release, in favour of 'after'
+      # synchronize: after
+      panes:
+        - nn:
+          - roslaunch mmros_wrapper mmros_wrapper.launch
+        - cam_discovery: 
+          - sleep 20
+          - WaitForRos
+          - waitForPing 192.168.0.116
+          - rosrun fkie_master_discovery master_discovery _log_level:=DEBUG 
+        - cam_sync: 
+          - sleep 30 
+          - waitForRos
+          - waitForPing 192.168.0.116
+          - rosrun fkie_master_sync master_sync _log_level:=DEBUG _sync_topics:=["/camera/color/image_raw/compressed"]
+  
+          

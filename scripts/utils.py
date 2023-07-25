@@ -47,7 +47,7 @@ def plot_result(image_np, bboxes, labels, scores, score_threshold=0.2, plot_mask
                    7: 'Pop tab',
                    8: 'Straw',
                    9: 'Cigarette'}
-    image_pil = PILImage.fromarray(img_np)
+    image_pil = PILImage.fromarray(image_np)
     draw = ImageDraw.Draw(image_pil)
     
     if plot_masks:
@@ -102,6 +102,14 @@ def convert_to_rects(bboxes, scores, score_threshold=0.5):
             x, y, width, height = bbox
             rects.append([x, y, x+width, y+height])
     return rects
+    
+def filter_bboxes(bboxes, scores, score_threshold=0.5): 
+    rects = []
+    for score, bbox in zip(scores, bboxes):
+        if score > score_threshold:
+            rects.append(bbox)
+    return rects
+    
 
 
 def convert_tensor_to_array(result_tensor): 
