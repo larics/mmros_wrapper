@@ -11,8 +11,8 @@ from mmdeploy.apis.utils import build_task_processor
 from mmdeploy.utils import get_input_shape, load_config
 from PIL import Image as PILImage
 from sensor_msgs.msg import Image, CameraInfo, CompressedImage
-from utils import convert_pil_to_ros_img, plot_result
-plot_result
+from utils import convert_pil_to_ros_img, plot_result, convert_to_rects
+from tracker import CentroidTracker
 
 class MMRosWrapper:
     def __init__(self, deploy_cfg_path, model_cfg_path, backend_model_name):
@@ -25,6 +25,9 @@ class MMRosWrapper:
         self.compr_img_sub = rospy.Subscriber("camera/color/image_raw/compressed", CompressedImage, self.image_callback, queue_size=1)
         self.img_pub = rospy.Publisher("camera/color/image_raw/decompressed", Image, queue_size=10)
         self.model = self.load_model(deploy_cfg_path, model_cfg_path, backend_model_name)
+        self.tracking = True
+        if self.tracking: 
+            self.cT = CentroidTracker()
 
     def image_callback(self, data):
         try:
@@ -68,11 +71,8 @@ class MMRosWrapper:
         return model
 
     def run(self):
-        i = 0
         while not rospy.is_shutdown():
-            viz_dbg_img_pth = "/home/gideon/catkin_ws/src/mmros_wrapper/scripts"
             if self.model_initialized and self.img_received:
-                i += 1
                 header = copy.deepcopy(self.header)
                 img = self.img.copy()
 
@@ -85,17 +85,37 @@ class MMRosWrapper:
 
                 with torch.no_grad():
                     result = self.model.test_step(model_inputs)
-                                        
-                plot = True
-                if plot == True: 
                     labels = result[0].pred_instances.labels.cpu().detach().numpy()
                     bboxes = result[0].pred_instances.bboxes.cpu().detach().numpy()
                     masks = result[0].pred_instances.masks.cpu().detach().numpy()
                     scores = result[0].pred_instances.scores.cpu().detach().numpy()
-                    pil_img = plot_result(img, bboxes, labels, scores, 0.5, True, masks)
+                    
+                # Test detection
+                plot = False
+                if plot:    
+                    pil_img = plot_result(img, bboxes, labels, scores, 0.25, True, masks)
                     #pil_img = plot_masks(pil_img, masks, labels, scores) 
-                    ros_img = convert_pil_to_ros_img(pil_img, header)
-                    self.img_pub.publish(ros_img)
+                
+                # Test tracking
+                if self.tracking:
+                    # Convert bboxes to format used in centroid tracker
+                    rects = convert_to_rects(bboxes, scores)
+                    # Call update on centroid tracker
+                    objects = self.cT.update(rects)
+                    pil_img = PILImage.fromarray(img_np)
+                    draw = ImageDraw.Draw(pil_img)
+                    for (objectID, centroid) in objects.items():
+                        # draw both the ID of the object and the centroid of the
+                        # object on the output frame
+                        text = "ID {}".format(objectID)
+                        font = ImageFont.load_default()
+                        draw.text((centroid[0] - 10, centroid[1] - 10), text, fill=(0, 255, 0), font=font)
+                        draw.ellipse((centroid[0] - 4, centroid[1] - 4, centroid[0] + 4, centroid[1] + 4), fill=(0, 255, 0))
+                    
+                # Publish plotted img
+                ros_img = convert_pil_to_ros_img(pil_img, header)
+                self.img_pub.publish(ros_img)
+                
                 # Capture the end time and calculate the duration
                 end_time = rospy.Time.now()
                 duration = (end_time - start_time).to_sec()

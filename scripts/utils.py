@@ -47,8 +47,7 @@ def plot_result(image_np, bboxes, labels, scores, score_threshold=0.2, plot_mask
                    7: 'Pop tab',
                    8: 'Straw',
                    9: 'Cigarette'}
-
-    image_pil = PILImage.fromarray(image_np)
+    image_pil = PILImage.fromarray(img_np)
     draw = ImageDraw.Draw(image_pil)
     
     if plot_masks:
@@ -89,13 +88,20 @@ def overlay_binary_mask(img_np, pil_img, mask, color=(255, 0, 0), alpha_true=0.3
     mask_pil = PILImage.fromarray(mask_pil_array, "RGBA")
 
     return PILImage.alpha_composite(pil_img.convert("RGBA"), mask_pil)
-    
+
 
 def plot_bbox(box, label, draw, id_to_label, score=None):
     x, y, width, height = box
     draw.rectangle([x, y, width, height], outline=label_to_color(label), width=3)
     draw.text((x, y), f"{id_to_label[label]}: {score:.2f}" if score is not None else id_to_label[label], fill=label_to_color(label))
- 
+
+def convert_to_rects(bboxes, scores, score_threshold=0.5): 
+    rects = []
+    for score, bbox in zip(scores, bboxes):
+        if score > score_threshold:
+            x, y, width, height = bbox
+            rects.append([x, y, x+width, y+height])
+    return rects
 
 
 def convert_tensor_to_array(result_tensor): 
