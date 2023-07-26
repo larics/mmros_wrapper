@@ -22,13 +22,21 @@ class MMRosWrapper:
         self.img_received = False
         self.model_initialized = False
         rospy.init_node('image_subscriber_node', anonymous=True)
-        self.rate = rospy.Rate(10)  # 10 Hz, adjust as needed
+        self.rate = rospy.Rate(20)  # 10 Hz, adjust as needed
         self.compr_img_sub = rospy.Subscriber("camera/color/image_raw/compressed", CompressedImage, self.image_callback, queue_size=1)
         self.img_pub = rospy.Publisher("camera/color/image_raw/decompressed", Image, queue_size=10)
         self.model = self.load_model(deploy_cfg_path, model_cfg_path, backend_model_name)
-        self.tracking = True
+        # Simple centroid tracking
+        self.tracking = False
         if self.tracking: 
             self.cT = CentroidTracker()
+            
+        self.anot_type = "taco"
+        # Choose net type
+        if self.anot_type == "coco": 
+            self.color_palette = create_color_palette("coco")
+        if self.anot_type == "taco":
+            self.color_palette = create_color_palette("taco")
 
     def image_callback(self, data):
         try:
@@ -94,7 +102,7 @@ class MMRosWrapper:
                 # Test detection
                 plot = True
                 if plot:    
-                    pil_img = plot_result(img, bboxes, labels, scores, 0.25, True, masks)
+                    pil_img = plot_result(img, bboxes, labels, scores, 0.25, True, self.anot_type, self.color_palette, masks)
                     #pil_img = plot_masks(pil_img, masks, labels, scores) 
                 
                 # Test tracking
