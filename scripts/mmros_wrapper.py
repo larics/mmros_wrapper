@@ -19,11 +19,13 @@ class MMRosWrapper:
     def __init__(self, deploy_cfg_path, model_cfg_path, backend_model_name):
         rospy.loginfo("Initializing node!")
         self.img = None
-        self.img_received = False
+        self.img_reciv = False
+        self.dpth_reciv = False
         self.model_initialized = False
         rospy.init_node('image_subscriber_node', anonymous=True)
         self.rate = rospy.Rate(20)  # 10 Hz, adjust as needed
         self.compr_img_sub = rospy.Subscriber("camera/color/image_raw/compressed", CompressedImage, self.image_callback, queue_size=1)
+        self.compr_dpth_sub = rospy.Subscriber("camera/depth/image_rect_raw", Image, self.dpth_callback, queue_size=1)
         self.img_pub = rospy.Publisher("camera/color/image_raw/decompressed", Image, queue_size=10)
         self.model = self.load_model(deploy_cfg_path, model_cfg_path, backend_model_name)
         # Simple centroid tracking
@@ -37,24 +39,37 @@ class MMRosWrapper:
             self.color_palette = create_color_palette("coco")
         if self.anot_type == "taco":
             self.color_palette = create_color_palette("taco")
+            
+        # Resolutions for aspect ratio
+        self.rgb = {"w":1280, "h":780}
+        self.dpth = {"w":640, "h":480}
 
     def image_callback(self, data):
         try:
+            rospy.loginfo_once("Recieved color img")
             np_arr = np.frombuffer(data.data, np.uint8)
             img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
             img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             self.img = img_rgb
             self.header = data.header
             self.np_arr = np_arr
-            self.img_received = True
+            self.img_reciv = True
         except Exception as e: 
-            rospy.logerr("Error decoding compressed image: %s", str(e))
+            rospy.logerr("Error decoding rgb compressed image: %s", str(e))
 
         # Convert and publish decompressed message
         debug_img_reciv = False
         if debug_img_reciv:
             img_msg = self.convert_np_array_to_ros_img_msg(data.data, data.header)
             self.img_pub.publish(img_msg)
+            
+    def dpth_callback(self, data): 
+        rospy.loginfo_once("Recieved depth img")
+        self.dpth_reciv = True
+        try: 
+            self.dpth_img = data.data
+        except Exception as e: 
+            rospy.logerr("Error decoding depth compressed image: %s", str(e))            
 
     def convert_np_array_to_ros_img_msg(self, data, header):
         pil_img = PILImage.open(io.BytesIO(bytearray(data)))
@@ -78,12 +93,23 @@ class MMRosWrapper:
         rospy.loginfo("Model succesfully initialized!")
 
         return model
+        
+    def get_dpth(self, objectId, centroid): 
+        
+        n_centroid_x = centroid[0]*(self.dpth['w']/self.rgb['w'])
+        n_centroid_y = centroid[1]*(self.dpth['h']/self.rgb['h'])
+        cx = int(np.ceil(n_centroid_x))
+        cy = int(np.ceil(n_centroid_y))
+        rospy.loginfo("Centroid {} depth is: {}".format(objectId, self.n_dpth_img[cx, cy]))
 
     def run(self):
         while not rospy.is_shutdown():
-            if self.model_initialized and self.img_received:
+            if self.model_initialized and self.img_reciv:
                 header = copy.deepcopy(self.header)
                 img = self.img.copy()
+                
+                if self.dpth_reciv:
+                    self.n_dpth_img = self.dpth_img.copy()
 
                 # Process input image
                 input_shape = get_input_shape(self.deploy_cfg)
@@ -109,8 +135,10 @@ class MMRosWrapper:
                 if self.tracking:
                     # Convert bboxes to format used in centroid tracker
                     rects = filter_bboxes(bboxes, scores)
-                    # Call update on centroid tracker
+                    # Call update on centroid tracker 
+                    # TODO: Publish message with the detected objects
                     objects = self.cT.update(rects)
+                    print("Detected objects are: {}".format(objects))
                     if not plot:
                         pil_img = PILImage.fromarray(img)
                     draw = ImageDraw.Draw(pil_img)
@@ -121,20 +149,24 @@ class MMRosWrapper:
                         font = ImageFont.load_default()
                         draw.text((centroid[0] - 10, centroid[1] - 10), text, fill=(0, 255, 0), font=font)
                         draw.ellipse((centroid[0] - 4, centroid[1] - 4, centroid[0] + 4, centroid[1] + 4), fill=(0, 255, 0))
+                        # Get centroid depths (from camera)
+                        if self.dpth_reciv:
+                            self.get_dpth(objectID, centroid)
                     
                 # Publish plotted img
                 ros_img = convert_pil_to_ros_img(pil_img, header)
                 self.img_pub.publish(ros_img)
                 
                 # Capture the end time and calculate the duration
-                end_time = rospy.Time.now()
-                duration = (end_time - start_time).to_sec()
-
-                print("Duration of model.test_step(model_inputs):", duration)
+                measure_duration = False
+                if measure_duration:
+                    end_time = rospy.Time.now()
+                    duration = (end_time - start_time).to_sec()
+                    print("Duration of model.test_step(model_inputs):", duration)
             else:
                 if not self.model_initialized:
                     rospy.logwarn("Model not initialized yet.")
-                if not self.img_received:
+                if not self.img_reciv:
                     rospy.logwarn("Image not received yet.")
 
             self.rate.sleep()
