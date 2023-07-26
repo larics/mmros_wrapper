@@ -44,8 +44,8 @@ class CentroidTracker():
 
         inputCentroids = np.zeros((len(rects), 2), dtype="int")
         for (i, (startX, startY, w, h)) in enumerate(rects):
-            cX = int(startX +  w/ 2.0)
-            cY = int(startY +  h/ 2.0)
+            cX = int((startX +  w)/ 2.0)
+            cY = int((startY +  h)/ 2.0)
             inputCentroids[i] = (cX, cY)
 
         if len(self.objects) == 0:

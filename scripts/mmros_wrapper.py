@@ -27,7 +27,7 @@ class MMRosWrapper:
         self.img_pub = rospy.Publisher("camera/color/image_raw/decompressed", Image, queue_size=10)
         self.model = self.load_model(deploy_cfg_path, model_cfg_path, backend_model_name)
         # Simple centroid tracking
-        self.tracking = False
+        self.tracking = True
         if self.tracking: 
             self.cT = CentroidTracker()
             
@@ -102,7 +102,7 @@ class MMRosWrapper:
                 # Test detection
                 plot = True
                 if plot:    
-                    pil_img = plot_result(img, bboxes, labels, scores, 0.25, True, self.anot_type, self.color_palette, masks)
+                    pil_img = plot_result(img, bboxes, labels, scores, 0.4, True, self.anot_type, self.color_palette, masks)
                     #pil_img = plot_masks(pil_img, masks, labels, scores) 
                 
                 # Test tracking
