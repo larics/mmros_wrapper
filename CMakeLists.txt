@@ -7,10 +7,11 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   sensor_msgs
   cv_bridge
+  mmros_utils
 )
 
 catkin_package(
-  CATKIN_DEPENDS rospy roscpp std_msgs sensor_msgs cv_bridge
+  CATKIN_DEPENDS rospy roscpp std_msgs sensor_msgs cv_bridge mmros_utils
 )
 
 include_directories(

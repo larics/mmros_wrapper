@@ -12,6 +12,7 @@ from mmdeploy.utils import get_input_shape, load_config
 from PIL import Image as PILImage
 from PIL import ImageDraw, ImageFont
 from sensor_msgs.msg import Image, CameraInfo, CompressedImage
+from mmros_utils.msg import DetectedCentroid, DetectedCentroidArray
 from utils import *
 from tracker import CentroidTracker
 
@@ -27,7 +28,9 @@ class MMRosWrapper:
         self.compr_img_sub = rospy.Subscriber("camera/color/image_raw/compressed", CompressedImage, self.image_callback, queue_size=1)
         self.compr_dpth_sub = rospy.Subscriber("camera/depth/image_rect_raw", Image, self.dpth_callback, queue_size=1)
         self.img_pub = rospy.Publisher("camera/color/image_raw/decompressed", Image, queue_size=10)
+        self.det_obj_pub = rospy.Publisher("detected_objects", DetectedCentroidArray, queue_size=2)
         self.model = self.load_model(deploy_cfg_path, model_cfg_path, backend_model_name)
+        
         # Simple centroid tracking
         self.tracking = True
         if self.tracking: 
@@ -65,7 +68,8 @@ class MMRosWrapper:
             
     def dpth_callback(self, data): 
         rospy.loginfo_once("Recieved depth img")
-        self.dpth_reciv = True
+        # put depth on false to mitigate any depth processing for now
+        self.dpth_reciv = False
         try: 
             self.dpth_img = data.data
         except Exception as e: 
@@ -108,8 +112,9 @@ class MMRosWrapper:
                 header = copy.deepcopy(self.header)
                 img = self.img.copy()
                 
-                if self.dpth_reciv:
-                    self.n_dpth_img = self.dpth_img.copy()
+                # Depth implementation
+                #if self.dpth_reciv:
+                #    self.n_dpth_img = self.dpth_img.copy()
 
                 # Process input image
                 input_shape = get_input_shape(self.deploy_cfg)
@@ -142,20 +147,28 @@ class MMRosWrapper:
                     if not plot:
                         pil_img = PILImage.fromarray(img)
                     draw = ImageDraw.Draw(pil_img)
+                    detObjArrayMsg = DetectedCentroidArray()
                     for (objectID, centroid) in objects.items():
+                        print(centroid)
+                        detObjMsg = DetectedCentroid()
+                        detObjMsg.px = int(centroid[0])
+                        detObjMsg.py = int(centroid[1])
+                        detObjMsg.id = objectID
+                        # Detected objects array 
+                        detObjArrayMsg.objects.append(detObjMsg) 
                         # draw both the ID of the object and the centroid of the
                         # object on the output frame
                         text = "ID {}".format(objectID)
                         font = ImageFont.load_default()
                         draw.text((centroid[0] - 10, centroid[1] - 10), text, fill=(0, 255, 0), font=font)
                         draw.ellipse((centroid[0] - 4, centroid[1] - 4, centroid[0] + 4, centroid[1] + 4), fill=(0, 255, 0))
-                        # Get centroid depths (from camera)
-                        if self.dpth_reciv:
-                            self.get_dpth(objectID, centroid)
-                    
+                
+                # Publish detected centroids 
+                self.det_obj_pub.publish(detObjArrayMsg)    
                 # Publish plotted img
                 ros_img = convert_pil_to_ros_img(pil_img, header)
                 self.img_pub.publish(ros_img)
+                
                 
                 # Capture the end time and calculate the duration
                 measure_duration = False
