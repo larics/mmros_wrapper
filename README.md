@@ -33,7 +33,7 @@ Feel free to modify and extend this ROS package to suit your specific litter col
 
 ## TODO
 
-- [ ] Implement control logic for drone litter collection.
-- [ ] Integrate object detection to identify additional types of litter.
-- [ ] Optimize the instance segmentation process for real-time operation.
-- [ ] Add ROS topics for publishing the detected litter objects.
+- [x] Implement control logic for drone litter collection.
+- [x] Integrate object detection to identify additional types of litter.
+- [x] Optimize the instance segmentation process for real-time operation.
+- [x] Add ROS topics for publishing the detected litter objects.
