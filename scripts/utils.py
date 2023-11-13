@@ -14,7 +14,7 @@ import random
 
 def create_color_palette(type_="taco"):
     if type_ == "taco": 
-        num_classes = 10
+        num_classes = 3
     if type_ == "coco": 
         num_classes = 90
         
@@ -138,13 +138,6 @@ def label_to_color(label, color_dict=None):
             1: (204, 255, 204),    # Light Pastel Green
             2: (204, 204, 255),    # Light Pastel Blue
             3: (255, 255, 204),    # Light Pastel Yellow
-            4: (255, 224, 179),    # Light Pastel Orange
-            5: (221, 160, 221),    # Light Pastel Purple
-            6: (204, 255, 255),    # Light Pastel Cyan
-            7: (255, 204, 255),    # Light Pastel Magenta
-            8: (204, 255, 204),    # Light Pastel Green (same as 1)
-            9: (244, 164, 96),     # Light Pastel Orange (a different shade of orange)
-            10: (240, 230, 140),   # Light Pastel Olive
             }
         # Calculate the color index based on the label ID
         return color_dict[label]
@@ -239,14 +232,7 @@ def get_id_to_label(type_):
 
     if type_ == "taco":  
         id_to_label = {0: 'Other',
-                       1: 'Plastic bag',
-                       2: 'Bottle Cap',
-                       3: 'Bottle',
-                       4: 'Cup',
-                       5: 'Lid',
-                       6: 'Can',
-                       7: 'Pop tab',
-                       8: 'Straw',
-                       9: 'Cigarette'}
+                       1: 'Pipe',
+                       2: 'Ladder'}
                        
     return id_to_label
