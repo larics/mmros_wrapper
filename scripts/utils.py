@@ -14,14 +14,14 @@ import random
 
 def create_color_palette(type_="taco"):
     if type_ == "taco": 
-        num_classes = 3
+        num_classes = 2
     if type_ == "coco": 
         num_classes = 90
         
     # Dictionary for color palette
     color_palette = {i: random_color() for i in range(1, num_classes + 1)}
     # Adding color for the background class (class id 0)
-    color_palette[0] = (0, 0, 0)
+    color_palette[0] = (255, 0, 0)
     # Number of classes (excluding the background class)
     return color_palette
 
@@ -61,10 +61,10 @@ def plot_result(image_np, bboxes, labels, scores, score_threshold=0.2, plot_mask
         
     image_pil = PILImage.fromarray(image_np)
     
+    draw = ImageDraw.Draw(image_pil)
     if plot_masks:
         for box, mask, label, score in zip(bboxes, masks, labels, scores):
             if score >= score_threshold:
-                draw = ImageDraw.Draw(image_pil)
                 plot_bbox(box, label, draw, id_to_label, color_dict)
                 color_ = label_to_color(label, color_dict)
                 image_pil = overlay_binary_mask(image_np, image_pil, mask, color=color_, alpha_true=0.4)
@@ -104,8 +104,9 @@ def overlay_binary_mask(img_np, pil_img, mask, color=(255, 0, 0), alpha_true=0.3
 
 def plot_bbox(box, label, draw, id_to_label, color_dict, score=None):
     x, y, width, height = box
-    draw.rectangle([x, y, width, height], outline=label_to_color(label, color_dict), width=3)
-    draw.text((x, y), f"{id_to_label[label]}: {score:.2f}" if score is not None else id_to_label[label], fill=label_to_color(label, color_dict))
+    draw.rectangle([x, y, width, height], outline=label_to_color(label, color_dict), width=5)
+    font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', size=20)
+    draw.text((x, y), f"{id_to_label[label]}: {score:.2f}" if score is not None else id_to_label[label], font=font, fill=label_to_color(label, color_dict))
     return draw
 
 def convert_to_rects(bboxes, scores, score_threshold=0.5): 
@@ -136,8 +137,6 @@ def label_to_color(label, color_dict=None):
         color_dict = {
             0: (255, 204, 204),    # Light Pastel Red
             1: (204, 255, 204),    # Light Pastel Green
-            2: (204, 204, 255),    # Light Pastel Blue
-            3: (255, 255, 204),    # Light Pastel Yellow
             }
         # Calculate the color index based on the label ID
         return color_dict[label]
@@ -231,8 +230,7 @@ def get_id_to_label(type_):
             81: "hair brush"}
 
     if type_ == "taco":  
-        id_to_label = {0: 'Other',
-                       1: 'Pipe',
-                       2: 'Ladder'}
+        id_to_label = {0: 'Pipe',
+                       1: 'Ladder'}
                        
     return id_to_label

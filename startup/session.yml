@@ -1,0 +1,9 @@
+name: detection
+root: ./
+startup_window: mmdetection
+pre_window: source <%= @settings["setup_name"] %>
+windows:
+  - mmdetection:
+      layout: tiled
+      panes:
+        - roslaunch mmros_wrapper mmros_wrapper.launch

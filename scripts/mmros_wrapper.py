@@ -1,4 +1,4 @@
-#! /home/gideon/archiconda3/envs/mmdeploy/bin/python3.8
+#! /root/archiconda3/envs/mmdeploy/bin/python
 import rospy
 import cv2
 import sys
@@ -24,7 +24,8 @@ class MMRosWrapper:
         rospy.init_node('image_subscriber_node', anonymous=True)
         self.rate = rospy.Rate(20)  # 10 Hz, adjust as needed
         self.compr_img_sub = rospy.Subscriber("camera/color/image_raw/compressed", CompressedImage, self.image_callback, queue_size=1)
-        self.img_pub = rospy.Publisher("camera/color/image_raw/decompressed", Image, queue_size=10)
+        self.img_pub = rospy.Publisher("camera/color/image_raw/output", Image, queue_size=10)
+        self.compr_img_pub = rospy.Publisher("camera/color/image_raw/output/compressed", CompressedImage, queue_size=1)
         self.model = self.load_model(deploy_cfg_path, model_cfg_path, backend_model_name)
         # Simple centroid tracking
         self.tracking = False
@@ -54,7 +55,12 @@ class MMRosWrapper:
         debug_img_reciv = False
         if debug_img_reciv:
             img_msg = self.convert_np_array_to_ros_img_msg(data.data, data.header)
+            compr_img_msg = CompressedImage()
+            compr_img_msg.header = img_msg.header
+            compr_img_msg.format = img_msg.format
+            compr_img_msg.data = img_msg.data
             self.img_pub.publish(img_msg)
+            self.compr_img_pub.publish(compr_img_msg)
 
     def convert_np_array_to_ros_img_msg(self, data, header):
         pil_img = PILImage.open(io.BytesIO(bytearray(data)))
@@ -102,7 +108,7 @@ class MMRosWrapper:
                 # Test detection
                 plot = True
                 if plot:    
-                    pil_img = plot_result(img, bboxes, labels, scores, 0.25, True, self.anot_type, self.color_palette, masks)
+                    pil_img = plot_result(img, bboxes, labels, scores, 0.65, False, self.anot_type, self.color_palette, masks)
                     #pil_img = plot_masks(pil_img, masks, labels, scores) 
                 
                 # Test tracking
