@@ -108,13 +108,13 @@ class MMRosWrapper:
                 # Test detection
                 plot = True
                 if plot:    
-                    pil_img = plot_result(img, bboxes, labels, scores, 0.65, False, self.anot_type, self.color_palette, masks)
+                    pil_img = plot_result(img, bboxes, labels, scores, 0.88, True, self.anot_type, self.color_palette, masks)
                     #pil_img = plot_masks(pil_img, masks, labels, scores) 
                 
                 # Test tracking
                 if self.tracking:
                     # Convert bboxes to format used in centroid tracker
-                    rects = filter_bboxes(bboxes, scores)
+                    rects = filter_bboxes(bboxes, scores, 0.90)
                     # Call update on centroid tracker
                     objects = self.cT.update(rects)
                     if not plot:
@@ -124,7 +124,8 @@ class MMRosWrapper:
                         # draw both the ID of the object and the centroid of the
                         # object on the output frame
                         text = "ID {}".format(objectID)
-                        font = ImageFont.load_default()
+                        # font = ImageFont.load_default()
+                        font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', size=20)
                         draw.text((centroid[0] - 10, centroid[1] - 10), text, fill=(0, 255, 0), font=font)
                         draw.ellipse((centroid[0] - 4, centroid[1] - 4, centroid[0] + 4, centroid[1] + 4), fill=(0, 255, 0))
                     

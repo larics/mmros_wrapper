@@ -1,4 +1,4 @@
-#! /home/gideon/archiconda3/envs/mmdeploy/bin/python3.8
+#! /root/archiconda3/envs/mmdeploy/bin/python
 
 import numpy 
 import rospy
@@ -21,7 +21,9 @@ def create_color_palette(type_="taco"):
     # Dictionary for color palette
     color_palette = {i: random_color() for i in range(1, num_classes + 1)}
     # Adding color for the background class (class id 0)
-    color_palette[0] = (255, 0, 0)
+    color_palette[0] = (255, 204, 204)
+    color_palette[1] = (204, 255, 204)
+    color_palette[2] = (204, 204, 255)
     # Number of classes (excluding the background class)
     return color_palette
 
@@ -65,13 +67,13 @@ def plot_result(image_np, bboxes, labels, scores, score_threshold=0.2, plot_mask
     if plot_masks:
         for box, mask, label, score in zip(bboxes, masks, labels, scores):
             if score >= score_threshold:
-                plot_bbox(box, label, draw, id_to_label, color_dict)
+                plot_bbox(box, label, draw, id_to_label, color_dict, score)
                 color_ = label_to_color(label, color_dict)
                 image_pil = overlay_binary_mask(image_np, image_pil, mask, color=color_, alpha_true=0.4)
     else:
         for box, label, score in zip(bboxes, labels, scores):
             if score >= score_threshold:
-                plot_bbox(box, label, draw, id_to_label, color_dict)
+                plot_bbox(box, label, draw, id_to_label, color_dict, score)
     return image_pil
     
 def overlay_binary_mask(img_np, pil_img, mask, color=(255, 0, 0), alpha_true=0.3):
