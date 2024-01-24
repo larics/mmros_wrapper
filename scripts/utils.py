@@ -1,4 +1,4 @@
-#! /root/archiconda3/envs/mmdeploy/bin/python
+#!/usr/bin/env python3
 
 import numpy 
 import rospy
@@ -75,7 +75,7 @@ def plot_result(image_np, bboxes, labels, scores, score_threshold=0.2, plot_mask
             if score >= score_threshold:
                 plot_bbox(box, label, draw, id_to_label, color_dict, score)
     return image_pil
-    
+
 def overlay_binary_mask(img_np, pil_img, mask, color=(255, 0, 0), alpha_true=0.3):
     """
     Overlay a binary mask on the given image.
@@ -137,8 +137,7 @@ def label_to_color(label, color_dict=None):
     else: 
         
         color_dict = {
-            0: (255, 204, 204),    # Light Pastel Red
-            1: (204, 255, 204),    # Light Pastel Green
+            0: (204, 255, 204)   # Light Pastel Green
             }
         # Calculate the color index based on the label ID
         return color_dict[label]
@@ -232,7 +231,6 @@ def get_id_to_label(type_):
             81: "hair brush"}
 
     if type_ == "taco":  
-        id_to_label = {0: 'Pipe',
-                       1: 'Ladder'}
+        id_to_label = {0: 'Crack'}
                        
     return id_to_label

@@ -1,4 +1,4 @@
-#! /root/archiconda3/envs/mmdeploy/bin/python
+#!/usr/bin/env python3
 
 import rospy
 from scipy.spatial import distance as dist
