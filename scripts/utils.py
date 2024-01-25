@@ -43,6 +43,18 @@ def convert_pil_to_ros_img(img, header):
      msg.data = numpy.array(img).tobytes()
      return msg
 
+def convert_np_array_to_ros_img_msg(numpy_array, encoding="mono8"):
+
+    ros_image_msg = Image()
+    ros_image_msg.height = numpy_array.shape[0]
+    ros_image_msg.width = numpy_array.shape[1]
+    ros_image_msg.encoding = encoding  # Adjust the encoding based on your array's format
+    ros_image_msg.is_bigendian = 0
+    ros_image_msg.step = ros_image_msg.width * 3  # Assuming 3 channels (adjust accordingly)
+    ros_image_msg.data = numpy_array.tobytes()
+    return ros_image_msg
+
+
 def plot_result(image_np, bboxes, labels, scores, score_threshold=0.2, plot_masks=False, plot_type="coco", color_dict = None, masks=None):
     """
     Plot bounding boxes on the given image.

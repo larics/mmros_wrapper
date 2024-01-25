@@ -11,6 +11,7 @@ import numpy as np
 from PIL import Image as PILImage
 from PIL import ImageDraw, ImageFont
 from sensor_msgs.msg import Image, CameraInfo, CompressedImage
+from mmros_utils.msg import InstSegArray, InstSeg
 from utils import *
 from tracker import CentroidTracker
 from mmdet.apis import init_detector, inference_detector
@@ -22,16 +23,16 @@ class MMRosWrapper:
         self.img_received = False
         self.model_initialized = False
 
-        rospy.init_node('image_subscriber_node', anonymous=True)
+        rospy.init_node('mmros_wrapper', anonymous=True)
         self.rate = rospy.Rate(20)  # 10 Hz, adjust as needed
-        self.compr_img_sub = rospy.Subscriber("/camera/color/image_raw/compressed", CompressedImage, self.image_callback, queue_size=1)
-        self.img_pub = rospy.Publisher("/camera/color/image_raw/output", Image, queue_size=1)
-        self.compr_img_pub = rospy.Publisher("/camera/color/image_raw/output/compressed", CompressedImage, queue_size=1)
         
         device = 'cuda:0' # or device='cpu'
         self.model = init_detector(model_cfg_path, checkpoint_file, device)
         self.model_initialized = True
-        
+
+        self._init_subscribers()
+        self._init_publishers()
+
         # Simple centroid tracking
         self.tracking = False
         if self.tracking: 
@@ -43,7 +44,14 @@ class MMRosWrapper:
             self.color_palette = create_color_palette("coco")
         if self.anot_type == "taco":
             self.color_palette = create_color_palette("taco")
-            
+
+    def _init_subscribers(self): 
+        self.compr_img_sub = rospy.Subscriber("/camera/color/image_raw/compressed", CompressedImage, self.image_callback, queue_size=1)
+
+    def _init_publishers(self): 
+        self.img_pub = rospy.Publisher("/camera/color/image_raw/output", Image, queue_size=1)
+        self.mask_pub = rospy.Publisher("/mask/output", Image, queue_size=1)
+        self.compr_img_pub = rospy.Publisher("/camera/color/image_raw/output/compressed", CompressedImage, queue_size=1)
 
     def image_callback(self, data):
         try:
@@ -73,6 +81,21 @@ class MMRosWrapper:
         img_msg = convert_pil_to_ros_img(pil_img, header)
         return img_msg
 
+    def create_inst_seg_msg(self, labels, masks, scores, num_obj=1): 
+        full_msg = InstSegArray()
+
+        zipped = zip(masks[:num_obj], scores[:num_obj], labels[:num_obj])
+        for i, (mask_, score_, label_) in enumerate(zipped):
+            inst_msg = InstSeg()
+            inst_msg.id = label_
+            inst_msg.score = score_
+            mask8_ = (mask_ * 255).astype(np.uint8)
+            inst_msg.mask = convert_np_array_to_ros_img_msg(mask8_)
+            full_msg.instance.append(inst_msg)
+        debug = True
+        if debug: 
+            self.mask_pub.publish(inst_msg.mask)
+
     def run(self):
         while not rospy.is_shutdown():
             if self.model_initialized and self.img_received:
@@ -87,7 +110,9 @@ class MMRosWrapper:
                     labels = result.pred_instances.labels.cpu().detach().numpy()
                     bboxes = result.pred_instances.bboxes.cpu().detach().numpy()
                     masks = result.pred_instances.masks.cpu().detach().numpy()
-                    scores = result.pred_instances.scores.cpu().detach().numpy()        
+                    scores = result.pred_instances.scores.cpu().detach().numpy()
+
+                self.create_inst_seg_msg(labels, masks, scores)        
                     
                 # Test detection
                 plot = True
