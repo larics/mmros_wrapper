@@ -24,7 +24,7 @@ class MMRosWrapper:
         rospy.init_node('image_subscriber_node', anonymous=True)
         self.rate = rospy.Rate(20)  # 10 Hz, adjust as needed
         self.compr_img_sub = rospy.Subscriber("camera/color/image_raw/compressed", CompressedImage, self.image_callback, queue_size=1)
-        self.img_pub = rospy.Publisher("camera/color/image_raw/output", Image, queue_size=10)
+        self.img_pub = rospy.Publisher("camera/color/image_raw/output", Image, queue_size=1)
         self.compr_img_pub = rospy.Publisher("camera/color/image_raw/output/compressed", CompressedImage, queue_size=1)
         self.model = self.load_model(deploy_cfg_path, model_cfg_path, backend_model_name)
         # Simple centroid tracking
