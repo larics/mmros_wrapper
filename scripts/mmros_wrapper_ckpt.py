@@ -1,4 +1,5 @@
-#! /root/archiconda3/envs/mmdeploy/bin/python
+#!/usr/bin/env python3
+
 import rospy
 import cv2
 import sys
@@ -7,26 +8,30 @@ import copy
 import torch
 import numpy as np
 
-from mmdeploy.apis.utils import build_task_processor
-from mmdeploy.utils import get_input_shape, load_config
 from PIL import Image as PILImage
 from PIL import ImageDraw, ImageFont
 from sensor_msgs.msg import Image, CameraInfo, CompressedImage
 from utils import *
 from tracker import CentroidTracker
+from mmdet.apis import init_detector, inference_detector
 
 class MMRosWrapper:
-    def __init__(self, deploy_cfg_path, model_cfg_path, backend_model_name):
+    def __init__(self, model_cfg_path, checkpoint_file):
         rospy.loginfo("Initializing node!")
         self.img = None
         self.img_received = False
         self.model_initialized = False
+
         rospy.init_node('image_subscriber_node', anonymous=True)
         self.rate = rospy.Rate(20)  # 10 Hz, adjust as needed
-        self.compr_img_sub = rospy.Subscriber("camera/color/image_raw/compressed", CompressedImage, self.image_callback, queue_size=1)
-        self.img_pub = rospy.Publisher("camera/color/image_raw/output", Image, queue_size=1)
-        self.compr_img_pub = rospy.Publisher("camera/color/image_raw/output/compressed", CompressedImage, queue_size=1)
-        self.model = self.load_model(deploy_cfg_path, model_cfg_path, backend_model_name)
+        self.compr_img_sub = rospy.Subscriber("/camera/color/image_raw/compressed", CompressedImage, self.image_callback, queue_size=1)
+        self.img_pub = rospy.Publisher("/camera/color/image_raw/output", Image, queue_size=1)
+        self.compr_img_pub = rospy.Publisher("/camera/color/image_raw/output/compressed", CompressedImage, queue_size=1)
+        
+        device = 'cuda:0' # or device='cpu'
+        self.model = init_detector(model_cfg_path, checkpoint_file, device)
+        self.model_initialized = True
+        
         # Simple centroid tracking
         self.tracking = False
         if self.tracking: 
@@ -38,6 +43,7 @@ class MMRosWrapper:
             self.color_palette = create_color_palette("coco")
         if self.anot_type == "taco":
             self.color_palette = create_color_palette("taco")
+            
 
     def image_callback(self, data):
         try:
@@ -67,48 +73,26 @@ class MMRosWrapper:
         img_msg = convert_pil_to_ros_img(pil_img, header)
         return img_msg
 
-    def load_model(self, deploy_cfg_path, model_cfg_path, backend_model_name):
-        # Read deploy_cfg and model_cfg
-        self.deploy_cfg, self.model_cfg = load_config(deploy_cfg_path, model_cfg_path)
-        debug_pths=False
-        if debug_pths:
-            print("deploy_cfg: {}".format(self.deploy_cfg))
-            print("model_cfg: {}".format(self.model_cfg))
-        # jetson config --> cuda:0
-        device = "cuda:0"
-
-        # Build task and backend model
-        self.task_processor = build_task_processor(self.model_cfg, self.deploy_cfg, device)
-        model = self.task_processor.build_backend_model([backend_model_name])
-        self.model_initialized = True
-        rospy.loginfo("Model succesfully initialized!")
-
-        return model
-
     def run(self):
         while not rospy.is_shutdown():
             if self.model_initialized and self.img_received:
                 header = copy.deepcopy(self.header)
                 img = self.img.copy()
 
-                # Process input image
-                input_shape = get_input_shape(self.deploy_cfg)
-                model_inputs, _ = self.task_processor.create_input(img, input_shape)
-
                 # Capture the start time
                 start_time = rospy.Time.now()
 
                 with torch.no_grad():
-                    result = self.model.test_step(model_inputs)
-                    labels = result[0].pred_instances.labels.cpu().detach().numpy()
-                    bboxes = result[0].pred_instances.bboxes.cpu().detach().numpy()
-                    masks = result[0].pred_instances.masks.cpu().detach().numpy()
-                    scores = result[0].pred_instances.scores.cpu().detach().numpy()
+                    result = inference_detector(self.model, img)
+                    labels = result.pred_instances.labels.cpu().detach().numpy()
+                    bboxes = result.pred_instances.bboxes.cpu().detach().numpy()
+                    masks = result.pred_instances.masks.cpu().detach().numpy()
+                    scores = result.pred_instances.scores.cpu().detach().numpy()        
                     
                 # Test detection
                 plot = True
                 if plot:    
-                    pil_img = plot_result(img, bboxes, labels, scores, 0.88, True, self.anot_type, self.color_palette, masks)
+                    pil_img = plot_result(img, bboxes, labels, scores, 0.3, True, self.anot_type, self.color_palette, masks)
                     #pil_img = plot_masks(pil_img, masks, labels, scores) 
                 
                 # Test tracking
@@ -148,16 +132,16 @@ class MMRosWrapper:
 
 if __name__ == '__main__':
     try:
-        if len(sys.argv) < 4:
-            print("Usage: rosrun your_package_name MMRosWrapper.py deploy_cfg_path model_cfg_path backend_model_name")
+        if len(sys.argv) < 3:
+            print("Usage for checkpoint: rosrun your_package_name MMRosWrapper.py model_cfg_path checkpoint_path")
         else:
-            deploy_cfg_path = sys.argv[1]
-            model_cfg_path = sys.argv[2]
-            backend_model_name = sys.argv[3]
-            print("Deploy cfg path: {}".format(deploy_cfg_path))
+            model_cfg_path = sys.argv[1]
+            checkpoint_file = sys.argv[2]
+            
             print("Model cfg path: {}".format(model_cfg_path))
-            print("Backend model name: {}".format(backend_model_name))
-            mmWrap = MMRosWrapper(deploy_cfg_path, model_cfg_path, backend_model_name)
+            print("Checkpoint file: {}".format(checkpoint_file))
+                    
+            mmWrap = MMRosWrapper(model_cfg_path, checkpoint_file)
             mmWrap.run()
     except rospy.ROSInterruptException:
         pass
