@@ -1,7 +1,9 @@
 <launch>
-  <!-- <arg name="model_cfg_path" default="/mmdetection/configs/rtmdet/rtmdet-ins_l_8xb32-300e_coco.py"/> -->
-  <arg name="model_cfg_path" default="/mmdetection/configs/mask_rcnn/mask-rcnn_r50_fpn_1x_taco.py"/>
-  <arg name="checkpoint_file" default="$(find mmros_wrapper)/include/ckpt/epoch_30.pth"/>
+  <!-- Mask RCNN -->
+  <!--arg name="model_cfg_path" default="/mmdetection/configs/mask_rcnn/mask-rcnn_r50_fpn_1x_taco.py"/>
+  <arg name="checkpoint_file" default="$(find mmros_wrapper)/include/ckpt/epoch_30.pth"/!-->
+  <arg name="model_cfg_path" default="/mmdetection/configs/rtmdet/rtmdet-ins_s_8xb32-300e_taco.py"/>
+  <arg name="checkpoint_file" default="$(find mmros_wrapper)/include/ckpt/epoch_40.pth"/>
 
   <node name="mm_ros_wrapper_node" pkg="mmros_wrapper" type="mmros_wrapper_ckpt.py" output="screen" 
         args="$(arg model_cfg_path) $(arg checkpoint_file)"/>

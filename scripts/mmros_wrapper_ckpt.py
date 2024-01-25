@@ -24,9 +24,9 @@ class MMRosWrapper:
 
         rospy.init_node('image_subscriber_node', anonymous=True)
         self.rate = rospy.Rate(20)  # 10 Hz, adjust as needed
-        self.compr_img_sub = rospy.Subscriber("camera/color/image_raw/compressed", CompressedImage, self.image_callback, queue_size=1)
-        self.img_pub = rospy.Publisher("camera/color/image_raw/output", Image, queue_size=1)
-        self.compr_img_pub = rospy.Publisher("camera/color/image_raw/output/compressed", CompressedImage, queue_size=1)
+        self.compr_img_sub = rospy.Subscriber("/camera/color/image_raw/compressed", CompressedImage, self.image_callback, queue_size=1)
+        self.img_pub = rospy.Publisher("/camera/color/image_raw/output", Image, queue_size=1)
+        self.compr_img_pub = rospy.Publisher("/camera/color/image_raw/output/compressed", CompressedImage, queue_size=1)
         
         device = 'cuda:0' # or device='cpu'
         self.model = init_detector(model_cfg_path, checkpoint_file, device)
