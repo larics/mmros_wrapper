@@ -1,0 +1,6 @@
+<launch>
+
+    <include file="$(find mmros_wrapper)/launch/mmros_wrapper_ckpt.launch"/>
+    <node name="shm_planner" pkg="mmros_wrapper" type="shm_planner.py" output="screen" args=""/>
+
+</launch>
