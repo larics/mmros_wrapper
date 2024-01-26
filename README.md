@@ -31,3 +31,8 @@ Note: The ROS package and the node are provided as a basic example, and for real
 
 Feel free to modify and extend this ROS package to suit your specific litter collection use case with a drone.
 
+## SheBang! 
+
+First line of the script `#!/usr/bin/python` heavily depends on which platform you use. 
+Check out where's your python interpreter located before trying to run anything. 
+

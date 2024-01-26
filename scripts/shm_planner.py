@@ -1,31 +1,39 @@
-#! /root/archiconda3/envs/mmdeploy/bin/python
+#!/usr/bin/env python3
 import rospy
 import cv2
 import sys
 import io
 import copy
 
+from mmros_utils.msg import InstSegArray, InstSeg
+
+
 
 class Extractor(): 
 
     def __init__(self):
         rospy.loginfo("Initializing node!")
-        rospy.init_node('extractor_node', anonymous=True)
+        rospy.init_node('shm_planner', anonymous=True)
         self.rate = rospy.Rate(20)
+        self.inst_seg_reciv = False
+        # Initialize subscribers and publishers in the end!
+        self._init_subscribers()
 
     def _init_subscribers(self): 
-        self.inst_seg_sub = rospy.Subscriber("/inst_seg", CompressedImage, self.inst_seg_cb, queue_size=1)
+        self.inst_seg_sub = rospy.Subscriber("/inst_seg/output", InstSegArray, self.inst_seg_cb, queue_size=1)
 
     def _init_publishers(self): 
         pass
 
     def inst_seg_cb(self, msg): 
 
-        self.mask = msg.InstSegArray[0].mask
+        self.inst_seg_reciv = True
+        self.inst_seg = msg
 
-    def run(): 
+    def run(self): 
         while not rospy.is_shutdown(): 
-            print("Running")
+            if self.inst_seg_reciv: 
+                print("Number of detected masks: {}".format(len(self.inst_seg.instances)))
             self.rate.sleep()
 
 

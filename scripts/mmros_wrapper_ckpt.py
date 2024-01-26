@@ -23,7 +23,7 @@ class MMRosWrapper:
         self.img_received = False
         self.model_initialized = False
 
-        rospy.init_node('mmros_wrapper', anonymous=True)
+        rospy.init_node('mmros_wrapper', anonymous=True, log_level=rospy.DEBUG)
         self.rate = rospy.Rate(20)  # 10 Hz, adjust as needed
         
         device = 'cuda:0' # or device='cpu'
@@ -51,6 +51,7 @@ class MMRosWrapper:
     def _init_publishers(self): 
         self.img_pub = rospy.Publisher("/camera/color/image_raw/output", Image, queue_size=1)
         self.mask_pub = rospy.Publisher("/mask/output", Image, queue_size=1)
+        self.inst_seg_pub = rospy.Publisher("/inst_seg/output", InstSegArray, queue_size=1)
         self.compr_img_pub = rospy.Publisher("/camera/color/image_raw/output/compressed", CompressedImage, queue_size=1)
 
     def image_callback(self, data):
@@ -82,6 +83,7 @@ class MMRosWrapper:
         return img_msg
 
     def create_inst_seg_msg(self, labels, masks, scores, num_obj=1): 
+        # num_obj argument defines how much instances can we detect
         full_msg = InstSegArray()
 
         zipped = zip(masks[:num_obj], scores[:num_obj], labels[:num_obj])
@@ -91,10 +93,14 @@ class MMRosWrapper:
             inst_msg.score = score_
             mask8_ = (mask_ * 255).astype(np.uint8)
             inst_msg.mask = convert_np_array_to_ros_img_msg(mask8_)
-            full_msg.instance.append(inst_msg)
-        debug = True
-        if debug: 
+            full_msg.instances.append(inst_msg)
+        
+        rospy.logdebug(f"Number of detected instances is: {i}")
+        debug_mask = True
+        if debug_mask: 
             self.mask_pub.publish(inst_msg.mask)
+        # Publish full instance segmentation msg
+        self.inst_seg_pub.publish(full_msg)      
 
     def run(self):
         while not rospy.is_shutdown():
@@ -145,7 +151,6 @@ class MMRosWrapper:
                 # Capture the end time and calculate the duration
                 end_time = rospy.Time.now()
                 duration = (end_time - start_time).to_sec()
-
                 print("Duration of model.test_step(model_inputs):", duration)
             else:
                 if not self.model_initialized:
@@ -169,4 +174,4 @@ if __name__ == '__main__':
             mmWrap = MMRosWrapper(model_cfg_path, checkpoint_file)
             mmWrap.run()
     except rospy.ROSInterruptException:
-        pass
+        exit()
