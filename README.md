@@ -31,9 +31,12 @@ Note: The ROS package and the node are provided as a basic example, and for real
 
 Feel free to modify and extend this ROS package to suit your specific litter collection use case with a drone.
 
-## TODO
+## SheBang! 
 
-- [x] Implement control logic for drone litter collection.
-- [x] Integrate object detection to identify additional types of litter.
-- [x] Optimize the instance segmentation process for real-time operation.
-- [x] Add ROS topics for publishing the detected litter objects.
+First line of the script `#!/usr/bin/python` heavily depends on which platform you use. 
+Check out where's your python interpreter located before trying to run anything. 
+
+## Plotting data in realtime
+
+It is possible to plot data in real time as described [here]. 
+

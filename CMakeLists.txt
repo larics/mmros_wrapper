@@ -19,5 +19,7 @@ include_directories(
 
 install(PROGRAMS
   scripts/mmros_wrapper.py
+  scripts/mmros_wrapper_ckpt.py
+  scripts/shm_planner.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
