@@ -36,3 +36,7 @@ Feel free to modify and extend this ROS package to suit your specific litter col
 First line of the script `#!/usr/bin/python` heavily depends on which platform you use. 
 Check out where's your python interpreter located before trying to run anything. 
 
+## Plotting data in realtime
+
+It is possible to plot data in real time as described [here]. 
+
