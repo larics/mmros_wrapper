@@ -31,6 +31,7 @@ def create_color_palette(type_="taco"):
 def random_color():
     return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
 
+# TODO: Put these into one conversions script! 
 def convert_pil_to_ros_img(img, header):
      img = img.convert('RGB')
      msg = Image()
@@ -44,7 +45,6 @@ def convert_pil_to_ros_img(img, header):
      return msg
 
 def convert_np_array_to_ros_img_msg(numpy_array, encoding="mono8"):
-
     ros_image_msg = Image()
     ros_image_msg.height = numpy_array.shape[0]
     ros_image_msg.width = numpy_array.shape[1]
@@ -54,6 +54,19 @@ def convert_np_array_to_ros_img_msg(numpy_array, encoding="mono8"):
     ros_image_msg.data = numpy_array.tobytes()
     return ros_image_msg
 
+def ros_image_to_numpy(image_msg):
+    # Extract image data from the ROS Image message
+    image_data = image_msg.data
+    # Get image dimensions
+    width = image_msg.width
+    height = image_msg.height
+    # Get the image encoding
+    encoding = image_msg.encoding
+    # Create a NumPy array from the image data
+    numpy_array = numpy.frombuffer(image_data, dtype=numpy.uint8)
+    # Reshape the array to match the image dimensions
+    numpy_array = numpy_array.reshape((height, width, -1))
+    return numpy_array
 
 def plot_result(image_np, bboxes, labels, scores, score_threshold=0.2, plot_masks=False, plot_type="coco", color_dict = None, masks=None):
     """

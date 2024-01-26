@@ -23,7 +23,7 @@ class MMRosWrapper:
         self.img_received = False
         self.model_initialized = False
 
-        rospy.init_node('mmros_wrapper', anonymous=True, log_level=rospy.DEBUG)
+        rospy.init_node('mmros_wrapper', anonymous=True, log_level=rospy.INFO)
         self.rate = rospy.Rate(20)  # 10 Hz, adjust as needed
         
         device = 'cuda:0' # or device='cpu'
@@ -46,7 +46,7 @@ class MMRosWrapper:
             self.color_palette = create_color_palette("taco")
 
     def _init_subscribers(self): 
-        self.compr_img_sub = rospy.Subscriber("/camera/color/image_raw/compressed", CompressedImage, self.image_callback, queue_size=1)
+        self.compr_img_sub = rospy.Subscriber("/camera/color/image_raw/compressed", CompressedImage, self.img_cb, queue_size=1)
 
     def _init_publishers(self): 
         self.img_pub = rospy.Publisher("/camera/color/image_raw/output", Image, queue_size=1)
@@ -54,7 +54,7 @@ class MMRosWrapper:
         self.inst_seg_pub = rospy.Publisher("/inst_seg/output", InstSegArray, queue_size=1)
         self.compr_img_pub = rospy.Publisher("/camera/color/image_raw/output/compressed", CompressedImage, queue_size=1)
 
-    def image_callback(self, data):
+    def img_cb(self, data):
         try:
             np_arr = np.frombuffer(data.data, np.uint8)
             img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
@@ -102,6 +102,30 @@ class MMRosWrapper:
         # Publish full instance segmentation msg
         self.inst_seg_pub.publish(full_msg)      
 
+    def extract_results(self, result): 
+        labels = result.pred_instances.labels.cpu().detach().numpy()
+        bboxes = result.pred_instances.bboxes.cpu().detach().numpy()
+        masks = result.pred_instances.masks.cpu().detach().numpy()
+        scores = result.pred_instances.scores.cpu().detach().numpy()
+        return labels, bboxes, masks, scores
+
+    def track(self, bboxes, scores, plot, track_treshold=0.9): 
+        # Convert bboxes to format used in centroid tracker
+        rects = filter_bboxes(bboxes, scores, track_treshold)
+        # Call update on centroid tracker
+        objects = self.cT.update(rects)
+        if not plot:
+            pil_img = PILImage.fromarray(img)
+            draw = ImageDraw.Draw(pil_img)
+            for (objectID, centroid) in objects.items():
+                # draw both the ID of the object and the centroid of the
+                # object on the output frame
+                text = "ID {}".format(objectID)
+                # font = ImageFont.load_default()
+                font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', size=20)
+                draw.text((centroid[0] - 10, centroid[1] - 10), text, fill=(0, 255, 0), font=font)
+                draw.ellipse((centroid[0] - 4, centroid[1] - 4, centroid[0] + 4, centroid[1] + 4), fill=(0, 255, 0))
+    
     def run(self):
         while not rospy.is_shutdown():
             if self.model_initialized and self.img_received:
@@ -109,15 +133,12 @@ class MMRosWrapper:
                 img = self.img.copy()
 
                 # Capture the start time
-                start_time = rospy.Time.now()
+                t1 = rospy.Time.now()
 
                 with torch.no_grad():
                     result = inference_detector(self.model, img)
-                    labels = result.pred_instances.labels.cpu().detach().numpy()
-                    bboxes = result.pred_instances.bboxes.cpu().detach().numpy()
-                    masks = result.pred_instances.masks.cpu().detach().numpy()
-                    scores = result.pred_instances.scores.cpu().detach().numpy()
-
+                    labels, bboxes, masks, scores = self.extract_results(result)
+                # Create instance segmentation mask
                 self.create_inst_seg_msg(labels, masks, scores)        
                     
                 # Test detection
@@ -128,30 +149,16 @@ class MMRosWrapper:
                 
                 # Test tracking
                 if self.tracking:
-                    # Convert bboxes to format used in centroid tracker
-                    rects = filter_bboxes(bboxes, scores, 0.90)
-                    # Call update on centroid tracker
-                    objects = self.cT.update(rects)
-                    if not plot:
-                        pil_img = PILImage.fromarray(img)
-                    draw = ImageDraw.Draw(pil_img)
-                    for (objectID, centroid) in objects.items():
-                        # draw both the ID of the object and the centroid of the
-                        # object on the output frame
-                        text = "ID {}".format(objectID)
-                        # font = ImageFont.load_default()
-                        font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', size=20)
-                        draw.text((centroid[0] - 10, centroid[1] - 10), text, fill=(0, 255, 0), font=font)
-                        draw.ellipse((centroid[0] - 4, centroid[1] - 4, centroid[0] + 4, centroid[1] + 4), fill=(0, 255, 0))
+                    self.track(bboxes, scores, plot, track_treshold=0.9)
                     
                 # Publish plotted img
                 ros_img = convert_pil_to_ros_img(pil_img, header)
                 self.img_pub.publish(ros_img)
                 
                 # Capture the end time and calculate the duration
-                end_time = rospy.Time.now()
-                duration = (end_time - start_time).to_sec()
-                print("Duration of model.test_step(model_inputs):", duration)
+                t2 = rospy.Time.now()
+                dt = (t2-t1).to_sec()
+                rospy.logdebug(f"Duration of model.test_step(model_inputs):{dt}")
             else:
                 if not self.model_initialized:
                     rospy.logwarn("Model not initialized yet.")
