@@ -1,10 +1,10 @@
 <launch>
 
-    <!-- RUN SHM planning -->
-    <node name="shm_planner_node" pkg="mmros_wrapper" type="shm_planner.py" output="screen" />
-
     <!-- RUN mmros_wrapper for neural network -->
     <include file="$(find mmros_wrapper)/launch/mmros_wrapper_ckpt.launch"/>
+
+    <!-- RUN crack localization  -->
+    <node name="crack_localizer_node" pkg="mmros_wrapper" type="crack_localizer.py" output="screen" />
     
 
 </launch>
