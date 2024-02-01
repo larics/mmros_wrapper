@@ -25,7 +25,7 @@ class CrackLocalizer():
     def __init__(self):
         rospy.loginfo("Initializing node!")
         rospy.init_node('shm_planner', anonymous=True, log_level=rospy.DEBUG)
-        self.rate = rospy.Rate(1)
+        self.rate = rospy.Rate(20)
         self.inst_seg_reciv = False; self.pcl_reciv = False;
         # Initialize subscribers and publishers in the end!
         self._init_publishers()
@@ -36,7 +36,7 @@ class CrackLocalizer():
         self.pcl_sub = rospy.Subscriber("/camera/depth_registered/points", PointCloud2, self.pcl_cb, queue_size=1)
 
     def _init_publishers(self): 
-        self.viz_pub = rospy.Publisher("/viz/markers", MarkerArray)
+        self.viz_pub = rospy.Publisher("/viz/markers", MarkerArray, queue_size=1)
 
     def get_depths(self, pcl, indices, axis="z"):
 
@@ -66,10 +66,11 @@ class CrackLocalizer():
     def visualize_crack_3d(self, points):
         markers = MarkerArray()
         color = ColorRGBA()
-        color.r = 0.5; color.g = 0.5; color.b = 0.05; color.a = 0.5; 
+        color.r = 1.0; color.g = 0.0; color.b = 0.00; color.a = 1.0; 
         for i, p in enumerate(points): 
             p_ = Pose()
             p_.position.x, p_.position.y, p_.position.z = p[0], p[1], p[2]
+            p_.orientation.x = 0.0; p_.orientation.y = 0.0; p_.orientation.z = 0.0; p_.orientation.w = 1.0; 
             s = Vector3(0.01, 0.01, 0.01)
             # http://docs.ros.org/en/noetic/api/visualization_msgs/html/msg/Marker.html
             marker_ = Marker()
@@ -88,7 +89,7 @@ class CrackLocalizer():
         while not rospy.is_shutdown(): 
             if self.inst_seg_reciv and self.pcl_reciv: 
                 mask = self.inst_seg.instances[0].mask
-                pts = self.localize_crack(mask)
+                pts = self.localize_crack(mask, 20)
                 viz = True
                 if viz:
                     markers = self.visualize_crack_3d(pts)
