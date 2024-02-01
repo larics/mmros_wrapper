@@ -92,7 +92,7 @@ class MMRosWrapper:
                 # Test detection
                 plot = True
                 if plot:    
-                    pil_img = plot_result(img, bboxes, labels, scores, 0.3, True, self.anot_type, self.color_palette, masks)
+                    pil_img = plot_result(img, bboxes, labels, scores, 0.9, True, self.anot_type, self.color_palette, masks)
                     #pil_img = plot_masks(pil_img, masks, labels, scores) 
                 
                 # Test tracking
