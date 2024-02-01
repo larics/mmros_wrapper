@@ -84,21 +84,26 @@ def plot_result(image_np, bboxes, labels, scores, score_threshold=0.2, plot_mask
     """
     
     
+    start_time = rospy.Time.now()
     id_to_label = get_id_to_label(plot_type) 
         
     image_pil = PILImage.fromarray(image_np)
-    
     draw = ImageDraw.Draw(image_pil)
     if plot_masks:
+        assert len(bboxes) == len(masks) == len(labels) == len(scores), "Mismatch in list lengths"
         for box, mask, label, score in zip(bboxes, masks, labels, scores):
             if score >= score_threshold:
-                plot_bbox(box, label, draw, id_to_label, color_dict, score)
                 color_ = label_to_color(label, color_dict)
                 image_pil = overlay_binary_mask(image_np, image_pil, mask, color=color_, alpha_true=0.4)
+                draw = ImageDraw.Draw(image_pil)
+                draw = plot_bbox(box, label, draw, id_to_label, color_dict, score)
     else:
         for box, label, score in zip(bboxes, labels, scores):
             if score >= score_threshold:
-                plot_bbox(box, label, draw, id_to_label, color_dict, score)
+                draw = plot_bbox(box, label, draw, id_to_label, color_dict, score)
+    end_time = rospy.Time.now()
+    duration = (end_time - start_time).to_sec()
+    print ("Plot duration:", duration)
     return image_pil
 
 def overlay_binary_mask(img_np, pil_img, mask, color=(255, 0, 0), alpha_true=0.3):
