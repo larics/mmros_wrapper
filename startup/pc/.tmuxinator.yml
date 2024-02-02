@@ -1,0 +1,15 @@
+s
+name: detection
+root: ./
+startup_window: mmdetection
+pre_window: source <%= @settings["setup_name"] %>
+windows:
+   layout: tiled
+   panes:
+     - instance_segmentation:
+        - docker start -i mmdet_cont
+        - roslaunch mmros_wrapper mmros_wrapper.launch
+     - multimaster_discovery: 
+        - rosrun fkie_master_discovery master_discovery
+     - multimaster_sync: 
+        - rosrun fkie_master_sync master_sync 

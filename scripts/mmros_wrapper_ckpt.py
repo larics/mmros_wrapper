@@ -7,6 +7,7 @@ import io
 import copy
 import torch
 import numpy as np
+import csv
 
 from PIL import Image as PILImage
 from PIL import ImageDraw, ImageFont
@@ -44,6 +45,9 @@ class MMRosWrapper:
             self.color_palette = create_color_palette("coco")
         if self.anot_type == "taco":
             self.color_palette = create_color_palette("taco")
+        
+        # Model name
+        self.model_name = "mask-rcnn-50"
 
     def _init_subscribers(self): 
         self.compr_img_sub = rospy.Subscriber("/camera/color/image_raw/compressed", CompressedImage, self.img_cb, queue_size=1)
@@ -51,6 +55,7 @@ class MMRosWrapper:
     def _init_publishers(self): 
         self.img_pub = rospy.Publisher("/camera/color/image_raw/output", Image, queue_size=1)
         self.mask_pub = rospy.Publisher("/mask/output", Image, queue_size=1)
+        self.hsv_mask_pub = rospy.Publisher("/hsv_mask/output", Image, queue_size=1)
         self.inst_seg_pub = rospy.Publisher("/inst_seg/output", InstSegArray, queue_size=1)
         self.compr_img_pub = rospy.Publisher("/camera/color/image_raw/output/compressed", CompressedImage, queue_size=1)
 
@@ -126,47 +131,60 @@ class MMRosWrapper:
                 draw.text((centroid[0] - 10, centroid[1] - 10), text, fill=(0, 255, 0), font=font)
                 draw.ellipse((centroid[0] - 4, centroid[1] - 4, centroid[0] + 4, centroid[1] + 4), fill=(0, 255, 0))
     
+    def mAP_test(self): 
+        pass
+        # TODO: Add mAP test
+        # - Add HSV filtering 
+        # - Compare with other image 
+        # - Check inference speed 
+    
     def run(self):
+        # txt Saving durations
+        file_path=f"/root/uav_ws/src/mmros_wrapper/scripts/{self.model_name}.txt"
+        file = open(file_path, 'w')
         while not rospy.is_shutdown():
             if self.model_initialized and self.img_received:
                 header = copy.deepcopy(self.header)
                 img = self.img.copy()
-
                 # Capture the start time
                 t1 = rospy.Time.now()
-
                 with torch.no_grad():
                     result = inference_detector(self.model, img)
                     labels, bboxes, masks, scores = self.extract_results(result)
+                    if self.mAP_test: 
+                        self.mAP_test()
+                    t2 = rospy.Time.now()
+                    dt = (t2 - t1).to_sec()
+                    rospy.loginfo("Inference time is: {}".format(dt))
+                    try: 
+                        file.write(f"{dt}\n")
+                    except Exception as e:
+                        print(f"Error writing to {file_path}: {e}")
                 # Create instance segmentation mask
                 self.create_inst_seg_msg(labels, masks, scores)        
-                    
                 # Test detection
-                plot = True
+                plot = False
                 if plot:    
                     pil_img = plot_result(img, bboxes, labels, scores, 0.3, True, self.anot_type, self.color_palette, masks)
-                    #pil_img = plot_masks(pil_img, masks, labels, scores) 
-                
+                    ros_img = convert_pil_to_ros_img(pil_img, header)
+                    self.img_pub.publish(ros_img)
                 # Test tracking
                 if self.tracking:
                     self.track(bboxes, scores, plot, track_treshold=0.9)
-                    
-                # Publish plotted img
-                ros_img = convert_pil_to_ros_img(pil_img, header)
-                self.img_pub.publish(ros_img)
-                
                 # Capture the end time and calculate the duration
                 t2 = rospy.Time.now()
                 dt = (t2-t1).to_sec()
                 rospy.logdebug(f"Duration of model.test_step(model_inputs):{dt}")
             else:
                 if not self.model_initialized:
-                    rospy.logwarn("Model not initialized yet.")
+                    rospy.logwarn_throttle(1, "Model not initialized yet.")
                 if not self.img_received:
-                    rospy.logwarn("Image not received yet.")
+                    rospy.logwarn_throttle(1, "Image not received yet.")
 
             self.rate.sleep()
-
+        
+        file.close()
+        
 if __name__ == '__main__':
     try:
         if len(sys.argv) < 3:

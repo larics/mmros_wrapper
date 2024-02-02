@@ -88,6 +88,7 @@ class CrackLocalizer():
         self.cnt = 0
         while not rospy.is_shutdown(): 
             if self.inst_seg_reciv and self.pcl_reciv: 
+                # for now, detect only one instance
                 mask = self.inst_seg.instances[0].mask
                 pts = self.localize_crack(mask, 20)
                 viz = True
@@ -95,7 +96,7 @@ class CrackLocalizer():
                     markers = self.visualize_crack_3d(pts)
                     self.viz_pub.publish(markers)
             else: 
-                rospy.logwarn(f"Img reciv: {self.inst_seg_reciv}; PCL reciv: {self.pcl_reciv}")
+                rospy.logwarn_throttle(2, f"Img reciv: {self.inst_seg_reciv}; PCL reciv: {self.pcl_reciv}")
             self.rate.sleep()
 
 
