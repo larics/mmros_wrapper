@@ -1,9 +1,25 @@
-name: detection
-root: ./
-startup_window: mmdetection
-pre_window: source <%= @settings["setup_name"] %>
+# /home/zozan-server/.config/tmuxinator/mmdet_exp.yml
+
+name: mmdet_exp
+root: ~/
+on_project_exit: 
+   - docker kill mmdet_cont
 windows:
-  - mmdetection:
-      layout: tiled
-      panes:
-        - roslaunch mmros_wrapper mmros_wrapper.launch
+   - mmdet:
+       layout: tiled
+       panes:
+         - instseg:
+           - docker start -i mmdet_cont
+           - echo "AAAAA"
+           - waitForDockerContainer mmdet_cont; roslaunch mmros_wrapper crack_localizer.launch
+         - discovery: 
+           - waitForDockerContainer mmdet_cont
+           - sleep 2s; docker exec -it mmdet_cont bash
+           - roslaunch fkie_master_discovery master_discovery.launch
+         - sync: 
+           - waitForDockerContainer mmdet_cont
+           - sleep 3s; docker exec -it mmdet_cont bash
+           - roslaunch fkie_master_sync master_sync.launch
+         - bash: 
+           - waitForDockerContainer mmdet_cont
+           - sleep 5s; docker exec -it mmdet_cont bash

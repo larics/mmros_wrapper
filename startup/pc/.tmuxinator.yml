@@ -1,15 +1,19 @@
-s
-name: detection
-root: ./
-startup_window: mmdetection
-pre_window: source <%= @settings["setup_name"] %>
+# /home/zozan-server/.config/tmuxinator/mmdet_exp.yml
+
+name: mmdetection
+root: ~/
 windows:
-   layout: tiled
-   panes:
-     - instance_segmentation:
-        - docker start -i mmdet_cont
-        - roslaunch mmros_wrapper mmros_wrapper.launch
-     - multimaster_discovery: 
-        - rosrun fkie_master_discovery master_discovery
-     - multimaster_sync: 
-        - rosrun fkie_master_sync master_sync 
+   - mmdet:
+     layout: tiled
+     panes:
+       - instance_segmentation:
+         - echo "AAAAA"
+         - docker start -i mmdet_cont; roslaunch mmros_wrapper mmros_wrapper_ckpt.launch
+       - multimaster_discovery: 
+         - echo "BAAAA"
+         - waitForDockerContainer mmdet_cont
+         - docker exec -it mmdet_cont bash; roslaunch fkie_master_discovery master_discovery
+       - multimaster_sync: 
+         - echo "CCCCC"
+         - waitForDockerContainer mmdet_cont
+         - docker exec -it mmdet_cont bash; rosrun fkie_master_sync master_sync
