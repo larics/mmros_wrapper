@@ -11,7 +11,6 @@ from sensor_msgs.msg import Image, CompressedImage, Joy, PointCloud2
 
 import random
 
-
 def create_color_palette(type_="taco"):
     if type_ == "taco": 
         num_classes = 2
@@ -133,7 +132,6 @@ def overlay_binary_mask(img_np, pil_img, mask, color=(255, 0, 0), alpha_true=0.3
 
     return PILImage.alpha_composite(pil_img.convert("RGBA"), mask_pil)
 
-
 def plot_bbox(box, label, draw, id_to_label, color_dict, score=None):
     x, y, width, height = box
     draw.rectangle([x, y, width, height], outline=label_to_color(label, color_dict), width=5)
@@ -159,7 +157,6 @@ def filter_bboxes(bboxes, scores, score_threshold=0.5):
 def convert_tensor_to_array(result_tensor): 
     return result_tensor.pred_sem_seg.data.detach().cpu().numpy()   
 
-
 def label_to_color(label, color_dict=None):
     
     if color_dict:
@@ -171,7 +168,6 @@ def label_to_color(label, color_dict=None):
             }
         # Calculate the color index based on the label ID
         return color_dict[label]
-
 
 def get_id_to_label(type_):
     
