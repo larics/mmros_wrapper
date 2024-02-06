@@ -87,9 +87,10 @@ class MMRosWrapper:
         img_msg = convert_pil_to_ros_img(pil_img, header)
         return img_msg
 
-    def create_inst_seg_msg(self, labels, masks, scores, num_obj=1): 
+    def create_inst_seg_msg(self, header, labels, masks, scores, num_obj=1): 
         # num_obj argument defines how much instances can we detect
         full_msg = InstSegArray()
+        full_msg.header = header
 
         zipped = zip(masks[:num_obj], scores[:num_obj], labels[:num_obj])
         for i, (mask_, score_, label_) in enumerate(zipped):
@@ -161,7 +162,7 @@ class MMRosWrapper:
                     except Exception as e:
                         print(f"Error writing to {file_path}: {e}")
                 # Create instance segmentation mask
-                self.create_inst_seg_msg(labels, masks, scores)        
+                self.create_inst_seg_msg(header, labels, masks, scores)        
                 # Test detection
                 plot = False
                 if plot:    
