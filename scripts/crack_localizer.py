@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import rospy
-import cv2
+#import cv2
 import sys
 import io
 import copy
@@ -33,7 +33,8 @@ class CrackLocalizer():
 
     def _init_subscribers(self): 
         # TODO: Change queue_size for message synchronizer
-        self.img_sub = rospy.Subscriber("/camera/color/image_raw/compressed", CompressedImage, self.img_cb, queue_size=1)
+        # I don't need compressed for OCTOMAP
+        # self.img_sub = rospy.Subscriber("/camera/color/image_raw/compressed", CompressedImage, self.img_cb, queue_size=1)
         self.inst_seg_sub = rospy.Subscriber("/inst_seg/output", InstSegArray, self.inst_seg_cb, queue_size=1)
         self.pcl_sub = rospy.Subscriber("/camera/depth_registered/points", PointCloud2, self.pcl_cb, queue_size=1)
 
@@ -43,7 +44,7 @@ class CrackLocalizer():
         self.img_gt_pub = rospy.Publisher("/img_gt", Image, queue_size=1)
 
     def img_cb(self, msg): 
-        rospy.logdebug("Recived image!")
+        #rospy.logdebug("Recived image!")
         self.rgb_reciv = True
         try:
             np_arr = np.frombuffer(msg.data, np.uint8)
@@ -65,20 +66,6 @@ class CrackLocalizer():
     def pcl_cb(self, msg): 
         self.pcl_reciv = True
         self.pcl = msg
-
-    def hsv_filtering(self, img, hue = [0, 255], saturation = [0, 255], value=[0, 255]):
-        # Convert the ROS image message to an OpenCV image
-        np_arr = np.frombuffer(msg.data, np.uint8)
-        img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-        # Convert the image from BGR to HSV color space
-        hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        # Define the range of the color you want to filter in HSV
-        lower_range = np.array([hue[0], saturation[0], value_min[0]])
-        upper_range = np.array([hue[1], saturation[1], value_max[1]])
-        # Create a mask for the specified HSV range
-        mask = cv2.inRange(hsv_img, lower_range, upper_range)
-        # Apply the mask to the original image
-        filtered_img = cv2.bitwise_and(img, img, mask=mask)
 
     def localize_crack(self, mask_msg, sample=1):
         # Get mask
@@ -125,8 +112,6 @@ class CrackLocalizer():
             else: 
                 rospy.logwarn_throttle(2, f"Img reciv: {self.inst_seg_reciv}; PCL reciv: {self.pcl_reciv}")
             self.rate.sleep()
-
-
 
 if __name__ == "__main__": 
     try: 
