@@ -1,17 +1,15 @@
 <launch>
 
     <!-- RUN mmros_wrapper for neural network -->
-    <include file="$(find mmros_wrapper)/launch/mmros_wrapper_ckpt.launch"/>
+    <!--include file="$(find mmros_wrapper)/launch/mmros_wrapper_ckpt.launch"/ -->
 
     <!-- RUN crack localization  -->
     <node name="crack_localizer_node" pkg="mmros_wrapper" type="crack_localizer.py" output="screen" />
 
+    <!-- RUN on nuckopter-->
     <!-- RUN tf publisher -->
     <node pkg="tf2_ros" type="static_transform_publisher" name="tf_cam_base" args="0 0 0 0 0 0.1  map camera_color_optical_frame" />
 
-    <!-- RUN octomap -->
-    <!--arg name="map_frame_id"        default="/$(arg namespace)/map" />
-    <arg name="base_link_frame_id"  default="/$(arg namespace)/base_link" /-->
     <arg name="map_frame_id"        default="map" />
     <arg name="resolution"          default="0.1"/>
     <arg name="base_link_frame_id"  default="camera_color_optical_frame" />

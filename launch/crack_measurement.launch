@@ -1,0 +1,6 @@
+<launch>
+
+    <!-- RUN crack localization  -->
+    <node name="crack_measurement_node" pkg="mmros_wrapper" type="crack_measurement.py" output="screen" />
+
+</launch>

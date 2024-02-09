@@ -11,7 +11,6 @@ from sensor_msgs.msg import Image, CompressedImage, Joy, PointCloud2
 
 import random
 
-
 def create_color_palette(type_="taco"):
     if type_ == "taco": 
         num_classes = 2
@@ -133,7 +132,6 @@ def overlay_binary_mask(img_np, pil_img, mask, color=(255, 0, 0), alpha_true=0.3
 
     return PILImage.alpha_composite(pil_img.convert("RGBA"), mask_pil)
 
-
 def plot_bbox(box, label, draw, id_to_label, color_dict, score=None):
     x, y, width, height = box
     draw.rectangle([x, y, width, height], outline=label_to_color(label, color_dict), width=5)
@@ -159,7 +157,6 @@ def filter_bboxes(bboxes, scores, score_threshold=0.5):
 def convert_tensor_to_array(result_tensor): 
     return result_tensor.pred_sem_seg.data.detach().cpu().numpy()   
 
-
 def label_to_color(label, color_dict=None):
     
     if color_dict:
@@ -171,7 +168,6 @@ def label_to_color(label, color_dict=None):
             }
         # Calculate the color index based on the label ID
         return color_dict[label]
-
 
 def get_id_to_label(type_):
     
@@ -264,3 +260,38 @@ def get_id_to_label(type_):
         id_to_label = {0: 'Crack'}
                        
     return id_to_label
+
+def quat2rot_matrix(qx, qy, qz, qw):
+    """
+    Covert a quaternion into a full three-dimensional rotation matrix.
+ 
+    Input
+    :param q0, q1, q2, q3: qw, qx, qy, qz
+ 
+    Output
+    :return: A 3x3 element matrix representing the full 3D rotation matrix. 
+             This rotation matrix converts a point in the local reference 
+             frame to a point in the global reference frame.
+    """
+     
+    # First row of the rotation matrix
+    r00 = 1 - 2*(qy*qy + qz*qz)
+    r01 = 2 * (qx*qy - qw*qz)
+    r02 = 2 * (qx*qz + qw*qy)
+     
+    # Second row of the rotation matrix
+    r10 = 2 * (qx*qy + qw*qz)
+    r11 = 1 - 2*(qx*qx + qz*qz)
+    r12 = 2 * (qy*qz - qw*qx)
+     
+    # Third row of the rotation matrix
+    r20 = 2 * (qy*qz - qw*qy)
+    r21 = 2 * (qy*qz + qw*qx)
+    r22 = 1 - 2*(qx*qx + qy*qy)
+     
+    # 3x3 rotation matrix
+    rot_matrix = numpy.array([[r00, r01, r02],
+                           [r10, r11, r12],
+                           [r20, r21, r22]])
+                            
+    return rot_matrix

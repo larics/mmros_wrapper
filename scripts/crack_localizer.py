@@ -1,20 +1,25 @@
 #!/usr/bin/env python3
 import rospy
-import cv2
+#import cv2
 import sys
 import io
 import copy
 import numpy as np
 import sensor_msgs.point_cloud2 as pc2
+# TF is compiled for python2
+# How to compile TF for python3: https://answers.ros.org/question/326226/importerror-dynamic-module-does-not-define-module-export-function-pyinit__tf2/
+#import tf.transformations as tr
 
 from std_msgs.msg import ColorRGBA
-from sensor_msgs.msg import Image, CameraInfo, PointCloud2
+from sensor_msgs.msg import Image, CompressedImage, CameraInfo, PointCloud2
 from visualization_msgs.msg import MarkerArray, Marker
 from geometry_msgs.msg import Pose, Vector3
 from mmros_utils.msg import InstSegArray, InstSeg
+from nav_msgs.msg import Odometry
 
-from utils import ros_image_to_numpy
+from utils import ros_image_to_numpy, convert_np_array_to_ros_img_msg, quat2rot_matrix
 from matplotlib import pyplot as plt
+
 
 def find_indexes(array, x):
     indexes = np.where(array == x)
@@ -24,33 +29,47 @@ class CrackLocalizer():
 
     def __init__(self):
         rospy.loginfo("Initializing node!")
-        rospy.init_node('shm_planner', anonymous=True, log_level=rospy.DEBUG)
+        rospy.init_node('crack_localizer_node', anonymous=True, log_level=rospy.DEBUG)
         self.rate = rospy.Rate(20)
-        self.inst_seg_reciv = False; self.pcl_reciv = False;
+        # Entering conditions
+        self.inst_seg_reciv = False; self.pcl_reciv = False; self.rgb_reciv = False;
         # Initialize subscribers and publishers in the end!
         self._init_publishers()
         self._init_subscribers()
 
     def _init_subscribers(self): 
+        # TODO: Change queue_size for message synchronizer
+        # I don't need compressed for OCTOMAP
+        # self.img_sub = rospy.Subscriber("/camera/color/image_raw/compressed", CompressedImage, self.img_cb, queue_size=1)
         self.inst_seg_sub = rospy.Subscriber("/inst_seg/output", InstSegArray, self.inst_seg_cb, queue_size=1)
         self.pcl_sub = rospy.Subscriber("/camera/depth_registered/points", PointCloud2, self.pcl_cb, queue_size=1)
 
+    # TODO: Add message synchronizer
     def _init_publishers(self): 
         self.viz_pub = rospy.Publisher("/viz/markers", MarkerArray, queue_size=1)
+        self.img_gt_pub = rospy.Publisher("/img_gt", Image, queue_size=1)
 
-    def get_depths(self, pcl, indices, axis="z"):
-
-        # Get current depths from depth cam --> TODO: Change read_points with cam_homography
-        depths = pc2.read_points(pcl, [axis], False, uvs=indices)
-        return depths
+    def img_cb(self, msg): 
+        #rospy.logdebug("Recived image!")
+        self.rgb_reciv = True
+        try:
+            np_arr = np.frombuffer(msg.data, np.uint8)
+            img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+            bw_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        except Exception as e: 
+            rospy.logerr("Error decoding compressed image: %s", str(e))
+        # Apply thresholding --> Add to utils method! 
+        threshold_value = 180
+        max_value = 255
+        _, binary_image = cv2.threshold(bw_img, threshold_value, max_value, cv2.THRESH_BINARY)
+        img_gt = convert_np_array_to_ros_img_msg(binary_image)
+        self.img_gt_pub.publish(img_gt)
 
     def inst_seg_cb(self, msg): 
-
         self.inst_seg_reciv = True
         self.inst_seg = msg
 
     def pcl_cb(self, msg): 
-
         self.pcl_reciv = True
         self.pcl = msg
 
@@ -90,6 +109,7 @@ class CrackLocalizer():
             if self.inst_seg_reciv and self.pcl_reciv: 
                 # for now, detect only one instance
                 mask = self.inst_seg.instances[0].mask
+                # TODO: Add comparison with thresholding or smthing like that 
                 pts = self.localize_crack(mask, 20)
                 viz = True
                 if viz:
@@ -98,8 +118,6 @@ class CrackLocalizer():
             else: 
                 rospy.logwarn_throttle(2, f"Img reciv: {self.inst_seg_reciv}; PCL reciv: {self.pcl_reciv}")
             self.rate.sleep()
-
-
 
 if __name__ == "__main__": 
     try: 
