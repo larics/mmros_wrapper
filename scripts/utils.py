@@ -285,13 +285,13 @@ def quat2rot_matrix(qx, qy, qz, qw):
     r12 = 2 * (qy*qz - qw*qx)
      
     # Third row of the rotation matrix
-    r20 = 2 * (qy*qz - qw*qy)
+    r20 = 2 * (qx*qz - qw*qy)
     r21 = 2 * (qy*qz + qw*qx)
     r22 = 1 - 2*(qx*qx + qy*qy)
      
     # 3x3 rotation matrix
     rot_matrix = numpy.array([[r00, r01, r02],
-                           [r10, r11, r12],
-                           [r20, r21, r22]])
+                             [r10, r11, r12],
+                             [r20, r21, r22]])
                             
     return rot_matrix
