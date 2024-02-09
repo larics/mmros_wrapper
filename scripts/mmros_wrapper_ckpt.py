@@ -53,9 +53,8 @@ class MMRosWrapper:
         self.compr_img_sub = rospy.Subscriber("/camera/color/image_raw/compressed", CompressedImage, self.img_cb, queue_size=1)
 
     def _init_publishers(self): 
-        self.img_pub = rospy.Publisher("/camera/color/image_raw/output", Image, queue_size=1)
+        self.img_pub = rospy.Publisher("/camera/color/image_raw", Image, queue_size=1)
         self.mask_pub = rospy.Publisher("/mask/output", Image, queue_size=1)
-        self.hsv_mask_pub = rospy.Publisher("/hsv_mask/output", Image, queue_size=1)
         self.inst_seg_pub = rospy.Publisher("/inst_seg/output", InstSegArray, queue_size=1)
         self.compr_img_pub = rospy.Publisher("/camera/color/image_raw/output/compressed", CompressedImage, queue_size=1)
 
@@ -72,15 +71,15 @@ class MMRosWrapper:
             rospy.logerr("Error decoding compressed image: %s", str(e))
 
         # Convert and publish decompressed message
-        debug_img_reciv = False
+        debug_img_reciv = True
         if debug_img_reciv:
             img_msg = self.convert_np_array_to_ros_img_msg(data.data, data.header)
             compr_img_msg = CompressedImage()
             compr_img_msg.header = img_msg.header
-            compr_img_msg.format = img_msg.format
-            compr_img_msg.data = img_msg.data
+            #compr_img_msg.format = img_msg.format
+            #compr_img_msg.data = img_msg.data
             self.img_pub.publish(img_msg)
-            self.compr_img_pub.publish(compr_img_msg)
+            #self.compr_img_pub.publish(compr_img_msg)
 
     def convert_np_array_to_ros_img_msg(self, data, header):
         pil_img = PILImage.open(io.BytesIO(bytearray(data)))
