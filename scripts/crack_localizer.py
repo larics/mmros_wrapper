@@ -170,17 +170,20 @@ class CrackLocalizer():
             # Test precision flag to compare crack start and crack stop 
             if self.test_precision == True and self.reciv_data: 
                 # Test location of the each crack
-                rospy.logdebug("UAV pose is: {}".format(self.uav_pose))
                 T_w_b = self.p2T(self.uav_pose)
-                T_b_c = np.array([[0, 0, -1, 0.045], [0, -1, 0, 0, ], [1, 0, 0, 0.096], [0, 0, 0, 1]])
+                T_b_c = np.array([[0, 0, 1, 0.045], [0, -1, 0, 0], [-1, 0, 0, 0.096], [0, 0, 0, 1]])
                 rospy.logdebug(f"T is: {T_w_b}")
                 if len(self.pts_)> 1:  # Found markers in markers
                     p_x = [p[0] for p in self.pts_]; p_y =[p[1] for p in self.pts_]; p_z = [p[2] for p in self.pts_]
                     p_x_ = sum(p_x)/len(p_x); p_y_ = sum(p_y)/len(p_y); p_z_ = sum(p_z)/len(p_z)
-                    p = np.array([p_x, p_y, p_z, 1])
-                    p_trans = np.dot(T_w_b, np.dot(T_b_c, p))
-                    rospy.logdebug(f"p_trans: {p_trans}") 
-                    rospy.logdebug(f"p_crack_mid: {}")
+                    p = np.array([np.round(p_x_, 3), np.round(p_y_, 3), np.round(p_z_, 3), 1])
+                    
+                    p_t = np.dot(T_b_c, p)
+                    #p_trans = np.dot(T_w_b, np.dot(T_b_c, p))
+                    rospy.logdebug(f"p: {p}")
+                    rospy.logdebug(f"p_trans: {p_t}") 
+                    #p_c = np.array([(self.p_crack_start.x + self.p_crack_stop.x)/2, (self.p_crack_start.y + self.p_crack_stop.y)/2, (self.p_crack_start.z + self.p_crack_stop)/2])
+                    #rospy.logdebug(f"p_crack_mid: {p_c}")
 
                 # TODO: Maybe add direct comparison to pts estimated from camera? :) But I can sort it out with markers
             else: 
