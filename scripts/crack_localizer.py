@@ -32,9 +32,10 @@ class CrackLocalizer():
         rospy.init_node('crack_localizer_node', anonymous=True, log_level=rospy.DEBUG)
         self.rate = rospy.Rate(20)
         # Entering conditions
-        self.inst_seg_reciv = False; self.pcl_reciv = False; self.rgb_reciv = False; 
-        self.crack_start_reciv = False; self.crack_stop_reciv = False; self.uav_pose_reciv = False; 
-        self.pts_ = []; 
+        self.inst_seg_reciv = False; self.pcl_reciv = False; self.rgb_reciv = False;
+        # Testing flags! 
+        self.crack_start_reciv = False; self.crack_stop_reciv = False; self.uav_pose_reciv = False; self.last_reciv = 1
+        self.pts_ = []; self.e_p = []; 
         # Test precision 
         self.test_precision = True; 
         # Initialize subscribers and publishers in the end!
@@ -75,6 +76,7 @@ class CrackLocalizer():
         self.p_crack_stop.z = msg.pose.pose.position.z
     
     def uav_pose_cb(self, msg): 
+
         self.uav_pose_reciv = True
         self.uav_pose = Pose()
         self.uav_pose.position.x = msg.pose.pose.position.x
@@ -84,6 +86,7 @@ class CrackLocalizer():
         self.uav_pose.orientation.y = msg.pose.pose.orientation.y
         self.uav_pose.orientation.z = msg.pose.pose.orientation.z
         self.uav_pose.orientation.w = msg.pose.pose.orientation.w
+        self.last_reciv = rospy.Time.now().to_sec()
 
     def marker_array_cb(self, msg): 
         self.pts_ = []
@@ -116,7 +119,7 @@ class CrackLocalizer():
 
     def p2T(self, pose): 
         T = np.matrix((4, 4))
-        R = quat2rot_matrix(pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z)
+        R = quat2rot_matrix(pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w)
         T = np.array([[R[0, 0], R[0, 1], R[0, 2], pose.position.x], 
                      [R[1, 0], R[1, 1], R[1, 2], pose.position.y], 
                      [R[2, 0], R[2, 1], R[2, 2], pose.position.z], 
@@ -155,6 +158,8 @@ class CrackLocalizer():
 
     def run(self): 
         self.cnt = 0
+        file_path=f"/root/uav_ws/src/mmros_wrapper/scripts/crack_measurement.txt"
+        file = open(file_path, 'w')
         while not rospy.is_shutdown(): 
             if self.inst_seg_reciv and self.pcl_reciv: 
                 # for now, detect only one instance
@@ -166,24 +171,37 @@ class CrackLocalizer():
                     markers = self.visualize_crack_3d(pts)
                     self.viz_pub.publish(markers)
 
-            self.reciv_data = self.crack_stop_reciv and self.crack_start_reciv and self.uav_pose_reciv
+            dt = rospy.Time.now().to_sec() - self.last_reciv
+            self.reciv_data = self.crack_stop_reciv and self.crack_start_reciv and self.uav_pose_reciv and dt < 0.2
             # Test precision flag to compare crack start and crack stop 
             if self.test_precision == True and self.reciv_data: 
                 # Test location of the each crack
                 T_w_b = self.p2T(self.uav_pose)
-                T_b_c = np.array([[0, 0, 1, 0.045], [0, -1, 0, 0], [-1, 0, 0, 0.096], [0, 0, 0, 1]])
-                rospy.logdebug(f"T is: {T_w_b}")
+                T_b_c = np.array([[0, 0, 1, 0.045], [-1, 0, 0, 0], [0, -1, 0, 0.096], [0, 0, 0, 1]])
+                #rospy.logdebug(f"T is: {T_w_b}")
                 if len(self.pts_)> 1:  # Found markers in markers
                     p_x = [p[0] for p in self.pts_]; p_y =[p[1] for p in self.pts_]; p_z = [p[2] for p in self.pts_]
                     p_x_ = sum(p_x)/len(p_x); p_y_ = sum(p_y)/len(p_y); p_z_ = sum(p_z)/len(p_z)
                     p = np.array([np.round(p_x_, 3), np.round(p_y_, 3), np.round(p_z_, 3), 1])
-                    
-                    p_t = np.dot(T_b_c, p)
-                    #p_trans = np.dot(T_w_b, np.dot(T_b_c, p))
-                    rospy.logdebug(f"p: {p}")
-                    rospy.logdebug(f"p_trans: {p_t}") 
-                    #p_c = np.array([(self.p_crack_start.x + self.p_crack_stop.x)/2, (self.p_crack_start.y + self.p_crack_stop.y)/2, (self.p_crack_start.z + self.p_crack_stop)/2])
-                    #rospy.logdebug(f"p_crack_mid: {p_c}")
+                    #rospy.logdebug(f"p_cam_cr: {p}")
+                    p_b = np.dot(T_b_c, p); 
+                    #rospy.logdebug(f"p_base: {p_b}")
+                    p_trans = np.dot(T_w_b, p_b)
+                    rospy.logdebug(f"p: {p_trans}")
+                    p_c = np.array([(self.p_crack_start.x + self.p_crack_stop.x)/2, (self.p_crack_start.y + self.p_crack_stop.y)/2, (self.p_crack_start.z + self.p_crack_stop.z)/2])
+                    rospy.logdebug(f"p_c: {p_c}")
+                    self.e_p.append([abs(p_trans[0] - p_c[0]), abs(p_trans[1] - p_c[1]), abs(p_trans[2] - p_c[2])])
+                    try: 
+                        str_ = f"{p_trans[0]}, {p_trans[1]}, {p_trans[2]}, {p_c[0]}, {p_c[1]}, {p_c[2]}, {T_w_b[0, 3]}, {T_w_b[1, 3]}, {T_w_b[2, 3]} \n"
+                        file.write(str_)
+                    except Exception as e:
+                        print(f"Error writing to {file_path}: {e}")
+
+            if dt > 1.0 and len(self.pts_) > 1 : 
+                e_p_ = [sum([i[0] for i in self.e_p])/len(self.e_p), sum([i[1] for i in self.e_p])/len(self.e_p), sum([i[2] for i in self.e_p])/len(self.e_p)]
+                rospy.logdebug(f"Average error is: {e_p_}")
+                file.close()
+
 
                 # TODO: Maybe add direct comparison to pts estimated from camera? :) But I can sort it out with markers
             else: 
