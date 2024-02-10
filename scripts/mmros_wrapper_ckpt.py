@@ -180,9 +180,7 @@ class MMRosWrapper:
                     rospy.logwarn_throttle(1, "Model not initialized yet.")
                 if not self.img_received:
                     rospy.logwarn_throttle(1, "Image not received yet.")
-
             self.rate.sleep()
-        
         file.close()
         
 if __name__ == '__main__':

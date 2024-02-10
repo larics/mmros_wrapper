@@ -31,6 +31,8 @@ class CrackMeasurement():
         rospy.loginfo("Initializing node!")
         rospy.init_node('crack_localizer_node', anonymous=True, log_level=rospy.DEBUG)
         self.rate = rospy.Rate(20)
+        self.direct = True # Work directly on pointclouds
+        self.inst_seg_reciv = False; self.pcl_reciv = False
         # Testing flags! 
         self.crack_start_reciv = False; self.crack_stop_reciv = False; self.uav_pose_reciv = False; self.last_reciv = 1
         self.pts_ = []; self.e_p = []; self.real_exp = True
@@ -44,7 +46,29 @@ class CrackMeasurement():
         self.crack_start_sub = rospy.Subscriber("/crack_start/vrpn_client/estimated_odometry", Odometry, self.crack_start_cb, queue_size=1)
         self.crack_stop_sub = rospy.Subscriber("/crack_end/vrpn_client/estimated_odometry", Odometry, self.crack_stop_cb, queue_size=1)
         self.uav_pose_sub = rospy.Subscriber("/nuckopter/vrpn_client/estimated_odometry", Odometry, self.uav_pose_cb, queue_size=1)
-        self.viz_markers_sub = rospy.Subscriber("/viz/markers", MarkerArray, self.marker_array_cb, queue_size=1)
+        if not self.direct:
+            self.viz_markers_sub = rospy.Subscriber("/viz/markers", MarkerArray, self.marker_array_cb, queue_size=1)
+        else: 
+            # Use real measurements (remove delay)
+            self.inst_seg_sub = rospy.Subscriber("/inst_seg/output", InstSegArray, self.inst_seg_cb, queue_size=1)
+            self.pcl_sub = rospy.Subscriber("/camera/depth_registered/points", PointCloud2, self.pcl_cb, queue_size=1)
+
+    def inst_seg_cb(self, msg): 
+        self.inst_seg_reciv = True
+        self.inst_seg = msg
+
+    def pcl_cb(self, msg): 
+        self.pcl_reciv = True
+        self.pcl = msg
+
+    def localize_crack(self, mask_msg, sample=1):
+        # Get mask
+        mask_ = self.inst_seg.instances[0].mask
+        np_mask = ros_image_to_numpy(mask_)
+        indices = find_indexes(np_mask, 255)
+        indices_ = indices[::sample]
+        points = list(pc2.read_points(self.pcl, skip_nans=True, uvs=indices, field_names = ("x", "y", "z")))
+        return points
 
     def marker_array_cb(self, msg): 
         self.pts_ = []
@@ -92,13 +116,23 @@ class CrackMeasurement():
         file_path=f"/root/uav_ws/src/mmros_wrapper/scripts/crack_measurement.txt"
         file = open(file_path, 'w')
         while not rospy.is_shutdown(): 
-            
+
+            # Direct is without subscribing to MarkerArray
+            if self.direct and self.inst_seg_reciv and self.pcl_reciv: 
+                # for now, detect only one instance
+                mask = self.inst_seg.instances[0].mask
+                # TODO: Add comparison with thresholding or smthing like that 
+                pts = self.localize_crack(mask, 20)
+                self.pts_ = pts
+
             dt = rospy.Time.now().to_sec() - self.last_reciv
             self.reciv_data = self.crack_stop_reciv and self.crack_start_reciv and self.uav_pose_reciv and dt < 0.2
             # Test precision flag to compare crack start and crack stop 
             if self.test_precision == True and self.reciv_data: 
                 # Test location of the each crack
                 T_w_b = self.p2T(self.uav_pose)
+                #T_w_b[:3, :3] = np.eye(3)
+                rospy.logdebug(f"Twb: {T_w_b}")
                 T_b_c = np.array([[0, 0, 1, 0.045], [-1, 0, 0, 0], [0, -1, 0, 0.096], [0, 0, 0, 1]])
                 if len(self.pts_)> 1:  # Found markers in markers
                     p_x = [p[0] for p in self.pts_]; p_y =[p[1] for p in self.pts_]; p_z = [p[2] for p in self.pts_]

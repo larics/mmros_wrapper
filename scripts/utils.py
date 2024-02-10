@@ -275,19 +275,19 @@ def quat2rot_matrix(qx, qy, qz, qw):
     """
      
     # First row of the rotation matrix
-    r00 = 1 - 2*(qy*qy + qz*qz)
-    r01 = 2 * (qx*qy - qw*qz)
-    r02 = 2 * (qx*qz + qw*qy)
+    r00 = 1 - 2*qy*qy - 2*qz*qz
+    r01 = 2*qx*qy - 2*qw*qz
+    r02 = 2*qx*qz + 2*qw*qy
      
     # Second row of the rotation matrix
-    r10 = 2 * (qx*qy + qw*qz)
-    r11 = 1 - 2*(qx*qx + qz*qz)
-    r12 = 2 * (qy*qz - qw*qx)
+    r10 = 2*qx*qy + 2*qw*qz
+    r11 = 1 - 2*qx*qx - 2*qz*qz
+    r12 = 2*qy*qz - 2*qw*qx
      
     # Third row of the rotation matrix
-    r20 = 2 * (qx*qz - qw*qy)
-    r21 = 2 * (qy*qz + qw*qx)
-    r22 = 1 - 2*(qx*qx + qy*qy)
+    r20 = 2*qx*qz - 2*qw*qy
+    r21 = 2*qy*qz + qw*qx
+    r22 = 1 - 2*qx*qx - 2*qy*qy
      
     # 3x3 rotation matrix
     rot_matrix = numpy.array([[r00, r01, r02],
